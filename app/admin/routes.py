@@ -84,3 +84,23 @@ def list_users():
 def call_logs():
     logs = get_all_call_logs()
     return jsonify(logs), 200
+
+from app.services.firebase_service import get_all_reports, resolve_report
+
+@admin_bp.route("/reports", methods=["GET"])
+@admin_required
+def list_reports():
+    reports = get_all_reports()
+    return jsonify(reports), 200
+
+
+@admin_bp.route("/reports/<report_id>/resolve", methods=["PATCH"])
+@admin_required
+def resolve_report_endpoint(report_id):
+    report = resolve_report(report_id)
+    if not report:
+        return jsonify({"error": "Report not found"}), 404
+    return jsonify({
+        "message": "Report marked as resolved.",
+        "report": report
+    }), 200

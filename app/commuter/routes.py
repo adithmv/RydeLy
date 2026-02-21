@@ -68,3 +68,32 @@ def call_history():
 def list_stands():
     stands = get_all_stands()
     return jsonify(stands), 200
+
+from app.services.firebase_service import create_report
+
+@commuter_bp.route("/report", methods=["POST"])
+@commuter_required
+def report_driver():
+    data = request.get_json()
+
+    if not data or "driverId" not in data or "reason" not in data:
+        return jsonify({"error": "driverId and reason are required"}), 400
+
+    if not data["reason"].strip():
+        return jsonify({"error": "Reason cannot be empty"}), 400
+
+    driver = get_driver(data["driverId"])
+    if not driver:
+        return jsonify({"error": "Driver not found"}), 404
+
+    report = create_report(
+        reported_by=session["uid"],
+        reported_type="driver",
+        target_id=data["driverId"],
+        reason=data["reason"].strip()
+    )
+
+    return jsonify({
+        "message": "Report submitted successfully.",
+        "reportId": report["id"]
+    }), 201

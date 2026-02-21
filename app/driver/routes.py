@@ -27,3 +27,29 @@ def register():
 def get_stands():
     stands = get_all_stands()
     return jsonify(stands), 200
+
+from app.middleware.auth_guard import driver_required
+from app.services.firebase_service import create_report
+
+@driver_bp.route("/report", methods=["POST"])
+@driver_required
+def report_commuter():
+    data = request.get_json()
+
+    if not data or "userId" not in data or "reason" not in data:
+        return jsonify({"error": "userId and reason are required"}), 400
+
+    if not data["reason"].strip():
+        return jsonify({"error": "Reason cannot be empty"}), 400
+
+    report = create_report(
+        reported_by=session["uid"],
+        reported_type="commuter",
+        target_id=data["userId"],
+        reason=data["reason"].strip()
+    )
+
+    return jsonify({
+        "message": "Report submitted successfully.",
+        "reportId": report["id"]
+    }), 201

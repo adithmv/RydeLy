@@ -99,3 +99,34 @@ def create_stand(name, town):
     }
     new_stand_ref.set(stand)
     return {"id": new_stand_ref.key, **stand}
+
+def create_report(reported_by, reported_type, target_id, reason):
+    """Creates a new report."""
+    ref = db.reference("/reports")
+    new_report_ref = ref.push()
+    report = {
+        "reportedBy": reported_by,
+        "reportedType": reported_type,
+        "targetId": target_id,
+        "reason": reason,
+        "resolvedByAdmin": False,
+        "timestamp": datetime.utcnow().isoformat()
+    }
+    new_report_ref.set(report)
+    return {"id": new_report_ref.key, **report}
+
+
+def get_all_reports():
+    """Returns all reports."""
+    ref = db.reference("/reports")
+    reports = ref.get()
+    if not reports:
+        return []
+    return [{"id": k, **v} for k, v in reports.items()]
+
+
+def resolve_report(report_id):
+    """Marks a report as resolved."""
+    ref = db.reference(f"/reports/{report_id}")
+    ref.update({"resolvedByAdmin": True})
+    return ref.get()
