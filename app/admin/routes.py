@@ -76,3 +76,11 @@ def list_users():
     if not users:
         return jsonify([]), 200
     return jsonify([{"id": k, **v} for k, v in users.items()]), 200
+
+    from app.services.call_service import get_all_call_logs
+
+@admin_bp.route("/logs", methods=["GET"])
+@admin_required
+def call_logs():
+    logs = get_all_call_logs()
+    return jsonify(logs), 200
