@@ -1,0 +1,6 @@
+
+flask
+flask-limiter
+firebase-admin
+python-dotenv
+cryptography
