@@ -13,9 +13,10 @@ def verify_token():
         return jsonify({"error": "idToken is required"}), 400
 
     # 1. Verify Firebase token
-    decoded = verify_firebase_token(data["idToken"])
-    if not decoded:
-        return jsonify({"error": "Invalid or expired token"}), 401
+    try:
+        decoded = verify_firebase_token(data["idToken"])
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 401
 
     uid   = decoded["uid"]
     phone = decoded.get("phone_number", "")
