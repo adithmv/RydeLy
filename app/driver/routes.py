@@ -53,3 +53,33 @@ def report_commuter():
         "message": "Report submitted successfully.",
         "reportId": report["id"]
     }), 201
+
+
+from flask import request, jsonify, session
+from app.driver import driver_bp
+from app.middleware.auth_guard import driver_required
+from app.services.firebase_service import (
+    create_report, update_driver_availability,
+    get_driver_by_phone
+)
+
+@driver_bp.route("/availability", methods=["PATCH"])
+@driver_required
+def toggle_availability():
+    data = request.get_json()
+
+    if data is None or "isAvailable" not in data:
+        return jsonify({"error": "isAvailable field is required"}), 400
+
+    if not isinstance(data["isAvailable"], bool):
+        return jsonify({"error": "isAvailable must be true or false"}), 400
+
+    driver_id = session.get("driverId")
+    if not driver_id:
+        return jsonify({"error": "Driver ID not found in session"}), 400
+
+    updated = update_driver_availability(driver_id, data["isAvailable"])
+    return jsonify({
+        "message": "Availability updated.",
+        "isAvailable": updated.get("isAvailable")
+    }), 200

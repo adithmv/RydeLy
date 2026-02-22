@@ -137,3 +137,14 @@ def update_driver_availability(driver_id, is_available):
     ref = db.reference(f"/drivers/{driver_id}")
     ref.update({"isAvailable": is_available})
     return ref.get()
+
+def get_driver_by_phone(phone):
+    """Find a driver record by phone number."""
+    ref = db.reference("/drivers")
+    all_drivers = ref.get()
+    if not all_drivers:
+        return None
+    for k, v in all_drivers.items():
+        if v.get("phone") == phone:
+            return {"id": k, **v}
+    return None
