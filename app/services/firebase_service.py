@@ -52,18 +52,19 @@ def get_all_drivers():
 
 
 def get_drivers_by_stand(stand_id, town):
-    """Returns verified, unbanned drivers filtered by stand and town."""
+    """Get verified, available, non-banned drivers for a stand."""
     ref = db.reference("/drivers")
-    drivers = ref.get()
-    if not drivers:
+    all_drivers = ref.get()
+    if not all_drivers:
         return []
     return [
         {"id": k, **v}
-        for k, v in drivers.items()
+        for k, v in all_drivers.items()
         if v.get("standId") == stand_id
         and v.get("town") == town
         and v.get("isVerified") == True
         and v.get("isBanned") == False
+        and v.get("isAvailable") == True
     ]
 
 
@@ -129,4 +130,10 @@ def resolve_report(report_id):
     """Marks a report as resolved."""
     ref = db.reference(f"/reports/{report_id}")
     ref.update({"resolvedByAdmin": True})
+    return ref.get()
+
+def update_driver_availability(driver_id, is_available):
+    """Toggle driver availability status."""
+    ref = db.reference(f"/drivers/{driver_id}")
+    ref.update({"isAvailable": is_available})
     return ref.get()
