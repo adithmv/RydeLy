@@ -97,3 +97,9 @@ def report_driver():
         "message": "Report submitted successfully.",
         "reportId": report["id"]
     }), 201
+
+from app.services.firebase_service import get_announcements
+
+@commuter_bp.route("/announcements", methods=["GET"])
+def announcements():
+    return jsonify(get_announcements()), 200

@@ -148,3 +148,23 @@ def get_driver_by_phone(phone):
         if v.get("phone") == phone:
             return {"id": k, **v}
     return None
+
+def get_announcements():
+    """Get all announcement messages."""
+    ref = db.reference("/announcements")
+    data = ref.get()
+    if not data:
+        return []
+    if isinstance(data, list):
+        return [a for a in data if a]
+    return [v for v in data.values() if v]
+
+def add_announcement(message):
+    """Add a new announcement."""
+    ref = db.reference("/announcements")
+    ref.push({"message": message})
+
+def delete_announcement(announcement_id):
+    """Delete an announcement by ID."""
+    ref = db.reference(f"/announcements/{announcement_id}")
+    ref.delete()

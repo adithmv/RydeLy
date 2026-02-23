@@ -104,3 +104,7 @@ def resolve_report_endpoint(report_id):
         "message": "Report marked as resolved.",
         "report": report
     }), 200
+
+from app.services.firebase_service import (
+    get_announcements, add_announcement, delete_announcement
+)
