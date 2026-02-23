@@ -1,22 +1,53 @@
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&family=Noto+Sans+Malayalam:wght@400;500;600&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&family=Noto+Sans+Malayalam:wght@400;500;600&display=swap');
-
 @layer base {
   :root {
-    --background: #FDFAF4;
-    --foreground: #0F0E0C;
-  }
-
-  * {
-    box-sizing: border-box;
+    --orange: 25 83% 51%;
+    --orange-light: 25 95% 53%;
+    --yellow: 43 90% 61%;
+    --cream: 36 60% 97%;
+    --cream-dark: 36 38% 92%;
+    --black: 30 10% 6%;
+    --brown: 27 62% 30%;
+    --green: 153 40% 18%;
+    --green-light: 152 69% 91%;
+    --green-dark: 166 90% 20%;
+    --muted-warm: 33 10% 42%;
+    --border-warm: 30 28% 85%;
+    --background: 36 60% 97%;
+    --foreground: 30 10% 6%;
+    --card: 0 0% 100%;
+    --card-foreground: 30 10% 6%;
+    --primary: 25 83% 51%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 36 38% 92%;
+    --secondary-foreground: 30 10% 6%;
+    --muted: 36 38% 92%;
+    --muted-foreground: 33 10% 42%;
+    --border: 30 28% 85%;
+    --input: 30 28% 85%;
+    --ring: 25 83% 51%;
+    --radius: 0.75rem;
+    --red: 0 84% 60%;
+    --red-light: 0 86% 97%;
+    --red-dark: 0 74% 35%;
+    --amber: 38 92% 50%;
+    --amber-light: 46 96% 89%;
+    --amber-dark: 22 78% 31%;
+    --shadow-card: 0 2px 16px rgba(0, 0, 0, 0.07);
+    --shadow-card-hover: 0 8px 28px rgba(0, 0, 0, 0.10);
+    --shadow-orange-glow: 0 10px 28px rgba(232, 117, 26, 0.35);
+    --shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.2);
+    --shadow-phone: 0 32px 80px rgba(0, 0, 0, 0.25);
   }
 
   body {
-    background: var(--background);
-    color: var(--foreground);
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
     font-family: 'DM Sans', sans-serif;
   }
 
@@ -27,6 +58,18 @@
   h5,
   h6 {
     font-family: 'Syne', sans-serif;
+  }
+
+  .font-heading {
+    font-family: 'Syne', sans-serif;
+  }
+
+  .font-body {
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  .font-malayalam {
+    font-family: 'Noto Sans Malayalam', sans-serif;
   }
 }
 
@@ -81,7 +124,7 @@ body::before {
   animation: float-badge 3s ease-in-out 1.8s infinite;
 }
 
-/* Pill button base */
+/* Pill button */
 .btn-pill {
   display: inline-flex;
   align-items: center;
@@ -92,7 +135,6 @@ body::before {
   font-weight: 600;
   font-size: 0.9rem;
   transition: all 0.2s ease;
-  border: none;
   cursor: pointer;
 }
 

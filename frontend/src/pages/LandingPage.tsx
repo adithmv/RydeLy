@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Shield, FileText, Lock, AlertTriangle, CheckCircle, Phone, MapPin, LogIn } from 'lucide-react';
+import { Shield, ShieldCheck, Lock, CheckCircle, Phone, MapPin, LogIn, ClipboardList, KeyRound, TriangleAlert } from 'lucide-react';
 
 function PhoneMockup() {
   return (
@@ -12,7 +12,7 @@ function PhoneMockup() {
       <div className="p-4 space-y-3">
         <div className="flex items-center gap-2 mb-1">
           <div className="w-6 h-6 bg-primary rounded-md" />
-          <span className="font-heading text-sm font-bold">RydeLy</span>
+          <span><img src="/src/assets/logo.png" alt="RydeLy" className="h-9 w-9 object-contain" /></span>
         </div>
         <div className="flex gap-2">
           <span className="text-[10px] bg-cream-dark px-2 py-1 rounded-pill font-body flex items-center gap-1">
@@ -102,32 +102,34 @@ function HowItWorks() {
 
 function SafetySection() {
   const cards = [
-    { icon: <Shield size={28} className="text-yellow" />, title: 'Admin-Verified Drivers', desc: 'Every driver is manually verified before appearing in the directory.' },
-    { icon: <FileText size={28} className="text-yellow" />, title: 'Every Call is Logged', desc: 'All calls are recorded with timestamps for your safety and accountability.' },
-    { icon: <Lock size={28} className="text-yellow" />, title: 'OTP Authentication', desc: 'Phone-based OTP login ensures only real users access the platform.' },
-    { icon: <AlertTriangle size={28} className="text-yellow" />, title: 'Report System', desc: 'Report any driver after a call. Three strikes and the driver is banned.' },
+    { icon: <ShieldCheck size={28} className="text-yellow" />, title: 'Admin-Verified Drivers', desc: 'Every driver is manually verified before appearing in the directory.' },
+    { icon: <ClipboardList size={28} className="text-yellow" />, title: 'Every Call is Logged', desc: 'All calls are recorded with timestamps for your safety and accountability.' },
+    { icon: <KeyRound size={28} className="text-yellow" />, title: 'OTP Authentication', desc: 'Phone-based OTP login ensures only real users access the platform.' },
+    { icon: <TriangleAlert size={28} className="text-yellow" />, title: 'Report System', desc: 'Report any driver after a call. Three strikes and the driver is banned.' },
   ];
+
   return (
     <section id="safety" className="py-16 md:py-24 bg-foreground text-primary-foreground">
       <div className="max-w-[1100px] mx-auto px-5">
         <div className="text-center mb-12">
-          <span className="text-yellow font-body text-sm font-semibold uppercase tracking-wider">Safety First · സുരക്ഷ ഒന്നാമത്</span>
-          <h2 className="font-heading text-3xl md:text-4xl font-bold mt-2 text-white">Your safety, our priority</h2>
-          <p className="font-malayalam text-sm text-white/60 mt-2">നിങ്ങളുടെ സുരക്ഷ, ഞങ്ങളുടെ മുൻഗണന</p>
+          <span className="text-yellow font-body text-sm font-semibold uppercase tracking-wider">Safety First</span>
+          <h2 className="font-heading text-3xl md:text-4xl font-bold mt-2 text-primary-foreground">Your safety, our priority</h2>
+          <p className="font-malayalam text-sm text-primary-foreground/60 mt-2">നിങ്ങളുടെ സുരക്ഷ, ഞങ്ങളുടെ മുൻഗണന</p>
         </div>
-        <div className="grid md:grid-cols-2 gap-5">
+
+        <div className="flex gap-5 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
           {cards.map((card, i) => (
             <motion.div
               key={card.title}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0, x: 30 }}
+              whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true, amount: 0.12 }}
               transition={{ delay: i * 0.1, duration: 0.5 }}
-              className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-card p-7"
+              className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-card p-7 flex-shrink-0 w-[280px] md:w-[calc(25%-15px)] snap-start"
             >
-              <div className="mb-3">{card.icon}</div>
-              <h3 className="font-heading text-lg font-bold text-white">{card.title}</h3>
-              <p className="font-body text-sm text-white/60 mt-2">{card.desc}</p>
+              <div className="mb-4">{card.icon}</div>
+              <h3 className="font-heading text-lg font-bold text-primary-foreground">{card.title}</h3>
+              <p className="font-body text-sm text-primary-foreground/60 mt-2">{card.desc}</p>
             </motion.div>
           ))}
         </div>
@@ -175,7 +177,7 @@ function ForDriversSection() {
           </ul>
           <button
             onClick={() => navigate('/register')}
-            className="btn-pill bg-primary text-white mt-8 shadow-orange-glow hover:bg-orange-light transition-all"
+            className="btn-pill bg-primary hover:bg-[hsl(var(--yellow))] hover:text-foreground transition-all shadow-orange-glow"
           >
             Register as Driver
           </button>
@@ -194,10 +196,10 @@ function CTASection() {
         <h2 className="font-heading text-3xl md:text-4xl font-bold">Ready to find your auto?</h2>
         <p className="font-malayalam text-sm text-muted-foreground mt-2">നിങ്ങളുടെ ഓട്ടോ കണ്ടെത്താൻ തയ്യാറാണോ?</p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center mt-8">
-          <button onClick={() => navigate('/login')} className="btn-pill bg-primary text-white shadow-orange-glow hover:bg-orange-light transition-all">
+          <button onClick={() => navigate('/login')} className="btn-pill bg-primary text-primary-foreground hover:bg-[hsl(var(--yellow))] hover:text-foreground transition-all shadow-orange-glow font-medium">
             Find Drivers
           </button>
-          <button onClick={() => navigate('/register')} className="btn-pill bg-transparent text-foreground border-2 border-foreground hover:bg-foreground/5 transition-all">
+          <button onClick={() => navigate('/register')} className="btn-pill bg-primary text-primary-foreground hover:bg-[hsl(var(--yellow))] hover:text-foreground transition-all shadow-orange-glow font-medium">
             Register as Driver
           </button>
         </div>
@@ -224,13 +226,7 @@ export default function LandingPage() {
 
   return (
     <main>
-      {/* Prototype banner */}
-      <div className="bg-yellow text-foreground text-center py-2 font-body text-xs font-medium mt-[60px] md:mt-[72px]">
-        This is a UI prototype preview — not connected to a live backend
-      </div>
-
-      {/* Hero */}
-      <section ref={heroRef} className="relative min-h-[calc(100vh-100px)] flex items-center overflow-hidden">
+      <section ref={heroRef} className="relative min-h-[calc(100vh-72px)] flex items-center overflow-hidden mt-[60px] md:mt-[72px]">
         <div className="parallax-blob absolute top-10 left-10 w-72 h-72 bg-primary/10 rounded-full blur-3xl" />
         <div className="parallax-blob absolute bottom-20 right-20 w-96 h-96 bg-yellow/10 rounded-full blur-3xl" />
         <div className="parallax-ring absolute top-32 right-40 w-40 h-40 border-2 border-primary/10 rounded-full" />
@@ -278,7 +274,7 @@ export default function LandingPage() {
               transition={{ delay: 0.4 }}
               className="flex flex-wrap gap-4 mt-8"
             >
-              <button onClick={() => navigate('/login')} className="btn-pill bg-primary text-white shadow-orange-glow hover:bg-orange-light transition-all font-medium">
+              <button onClick={() => navigate('/login')} className="btn-pill bg-primary text-primary-foreground hover:bg-[hsl(var(--orange))] hover:text-foreground transition-all shadow-orange-glow font-medium">
                 Find Drivers
               </button>
               <a href="#how-it-works" className="btn-pill bg-transparent text-foreground border-2 border-foreground hover:bg-foreground/5 transition-all font-medium">
@@ -287,7 +283,6 @@ export default function LandingPage() {
             </motion.div>
           </div>
 
-          {/* Phone mockup + floating badges */}
           <div className="relative hidden md:block">
             <div className="animate-float absolute -top-4 -left-4 bg-card rounded-pill px-4 py-2 shadow-card-hover border border-border-warm z-10 flex items-center gap-2">
               <CheckCircle size={12} className="text-green" />

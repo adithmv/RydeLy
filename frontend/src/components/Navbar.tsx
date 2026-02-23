@@ -37,7 +37,7 @@ export default function Navbar() {
   <img 
     src="/src/assets/logo.png" 
     alt="RydeLy" 
-    className="h-9 w-9 object-contain"
+    className="h-11 w- object-contain"
   />
   
 </Link>
