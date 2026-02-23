@@ -39,10 +39,7 @@ export default function Navbar() {
     alt="RydeLy" 
     className="h-9 w-9 object-contain"
   />
-  <span className="font-heading text-xl font-extrabold tracking-tight">
-    Ryde<span className="text-orange">Ly</span>
-    <span className="font-malayalam text-xs font-normal text-muted ml-1.5">റൈഡ്‌ലി</span>
-  </span>
+  
 </Link>
 
           {/* Desktop */}
