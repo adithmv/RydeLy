@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { TOWNS, STANDS } from '@/data/mockData';
+import { TOWNS, STANDS } from "@/data/mockData";
 import { User, Phone, MapPin, Navigation, CheckCircle, ChevronDown } from 'lucide-react';
 
 export default function DriverRegistrationPage() {
