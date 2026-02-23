@@ -18,7 +18,8 @@ export default function Navbar() {
   }, []);
 
   useEffect(() => {
-    setMenuOpen(false);
+    const timer = setTimeout(() => setMenuOpen(false), 0);
+    return () => clearTimeout(timer);
   }, [location.pathname]);
 
   const navBg = scrolled || !isLanding
