@@ -30,19 +30,21 @@ export default function LoginPage() {
       otpRefs.current[index - 1]?.focus();
     }
   };
-
-  const handleVerify = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (otp.every(d => d !== '')) {
-      if (phone.endsWith('0000')) {
-        loginAsAdmin();
-      } else {
-        login();
-      }
+const handleVerify = (e: React.FormEvent) => {
+  e.preventDefault();
+  if (otp.every(d => d !== '')) {
+    if (phone.endsWith('0000')) {
+      loginAsAdmin();
+      navigate('/admin');
+    } else if (phone.endsWith('1111')) {
+      login(true);
+      navigate('/driver/portal');
+    } else {
+      login(false);
       navigate('/home');
     }
-  };
-
+  }
+};
   const isOtpComplete = otp.every(d => d !== '');
   const maskedPhone = phone ? `+91 ${phone.slice(0, 2)}****${phone.slice(-2)}` : '';
 

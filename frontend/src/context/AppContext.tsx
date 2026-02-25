@@ -1,16 +1,13 @@
-//@refresh reset
-import { useState, useEffect, useCallback, createContext, useContext } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
-interface AppState {
+interface AppContextType {
   isLoggedIn: boolean;
   isAdmin: boolean;
+  isDriver: boolean;
   callCount: number;
   selectedTown: string;
   selectedStand: string;
-}
-
-interface AppContextType extends AppState {
-  login: () => void;
+  login: (driver?: boolean) => void;
   logout: () => void;
   loginAsAdmin: () => void;
   incrementCallCount: () => boolean;
@@ -20,45 +17,74 @@ interface AppContextType extends AppState {
 
 const AppContext = createContext<AppContextType | null>(null);
 
-export function AppProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<AppState>({
-    isLoggedIn: false,
-    isAdmin: false,
-    callCount: 0,
-    selectedTown: '',
-    selectedStand: '',
-  });
+export function AppProvider({ children }: { children: ReactNode }) {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isDriver, setIsDriver] = useState(false);
+  const [callCount, setCallCount] = useState(0);
+  const [selectedTown, setSelectedTown] = useState("");
+  const [selectedStand, setSelectedStand] = useState("");
 
+  // Reset call count every hour
   useEffect(() => {
-    const interval = setInterval(() => {
-      setState(s => ({ ...s, callCount: 0 }));
-    }, 3600000);
+    const interval = setInterval(() => setCallCount(0), 60 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
 
-  const login = useCallback(() => setState(s => ({ ...s, isLoggedIn: true, isAdmin: false })), []);
-  const logout = useCallback(() => setState(s => ({ ...s, isLoggedIn: false, isAdmin: false })), []);
-  const loginAsAdmin = useCallback(() => setState(s => ({ ...s, isLoggedIn: true, isAdmin: true })), []);
+  // login(true)  → driver login
+  // login(false) → commuter login (default)
+  const login = (driver = false) => {
+    setIsLoggedIn(true);
+    setIsAdmin(false);
+    setIsDriver(driver);
+  };
 
-  const incrementCallCount = useCallback(() => {
-    if (state.callCount >= 5) return false;
-    setState(s => ({ ...s, callCount: s.callCount + 1 }));
+  const loginAsAdmin = () => {
+    setIsLoggedIn(true);
+    setIsAdmin(true);
+    setIsDriver(false);
+  };
+
+  const logout = () => {
+    setIsLoggedIn(false);
+    setIsAdmin(false);
+    setIsDriver(false);
+    setCallCount(0);
+    setSelectedTown("");
+    setSelectedStand("");
+  };
+
+  // Returns true if call allowed, false if rate limit hit
+  const incrementCallCount = (): boolean => {
+    if (callCount >= 5) return false;
+    setCallCount((c) => c + 1);
     return true;
-  }, [state.callCount]);
-
-  const setSelectedTown = useCallback((town: string) => setState(s => ({ ...s, selectedTown: town, selectedStand: '' })), []);
-  const setSelectedStand = useCallback((stand: string) => setState(s => ({ ...s, selectedStand: stand })), []);
+  };
 
   return (
-    <AppContext.Provider value={{ ...state, login, logout, loginAsAdmin, incrementCallCount, setSelectedTown, setSelectedStand }}>
+    <AppContext.Provider
+      value={{
+        isLoggedIn,
+        isAdmin,
+        isDriver,
+        callCount,
+        selectedTown,
+        selectedStand,
+        login,
+        logout,
+        loginAsAdmin,
+        incrementCallCount,
+        setSelectedTown,
+        setSelectedStand,
+      }}
+    >
       {children}
     </AppContext.Provider>
   );
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
 export function useApp() {
   const ctx = useContext(AppContext);
-  if (!ctx) throw new Error('useApp must be used within AppProvider');
+  if (!ctx) throw new Error("useApp must be used inside AppProvider");
   return ctx;
 }
