@@ -14,6 +14,7 @@ import DriverPortalPage from '@/pages/DriverPortalPage';
 import DriverComplaintPage from '@/pages/DriverComplaintPage';
 import NotFound from '@/pages/NotFound';
 
+
 const queryClient = new QueryClient();
 
 export default function App() {
@@ -32,7 +33,8 @@ export default function App() {
             <Route path="/history"          element={<CallHistoryPage />} />
             <Route path="/driver/portal"    element={<DriverPortalPage />} />
             <Route path="/driver/complaint" element={<DriverComplaintPage />} />
-            <Route path="*"                 element={<NotFound />} />
+            <Route path="*" element={<NotFound />} />
+            
           </Routes>
           <Footer />
         </BrowserRouter>
