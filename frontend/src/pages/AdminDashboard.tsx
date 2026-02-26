@@ -1,423 +1,488 @@
-import { useState } from "react";
-import { MOCK_DRIVERS, MOCK_CALL_LOGS, MOCK_REPORTS } from "@/data/mockData";
-import type { Driver, Report, CallLog } from "@/data/mockData";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState, useEffect, useCallback } from "react";
 import {
-  ShieldCheck, ShieldOff, AlertTriangle, Trash2,
-  CheckCircle, Phone, Clock, Users,
-  FileText, Megaphone, X
+  adminGetDrivers, adminGetUsers, adminGetLogs,
+  adminGetReports, adminVerifyDriver, adminWarn,
+  adminRemove, adminResolveReport,
+  AdminDriver, AdminUser, AdminLog, AdminReport,
+} from "@/lib/api";
+import { motion } from "framer-motion";
+import {
+  Users, Car, Phone, AlertTriangle, CheckCircle,
+  XCircle, ShieldCheck, Clock, Loader2, RefreshCw,
+  Megaphone,
 } from "lucide-react";
+import { useApp } from "@/context/AppContext";
+import { useNavigate } from "react-router-dom";
 
-type Tab = "drivers" | "users" | "logs" | "reports" | "announcement";
+// ── Stat card ─────────────────────────────────────────────
+function StatCard({ icon, label, value, sub }: {
+  icon: React.ReactNode;
+  label: string;
+  value: number | string;
+  sub?: string;
+}) {
+  return (
+    <div className="bg-card rounded-2xl border border-border-warm shadow-card px-5 py-4">
+      <div className="flex items-center gap-3 mb-2">
+        <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
+          {icon}
+        </div>
+        <span className="font-body text-xs text-muted-foreground">{label}</span>
+      </div>
+      <p className="font-heading text-2xl font-bold">{value}</p>
+      {sub && <p className="font-body text-[11px] text-muted-foreground mt-0.5">{sub}</p>}
+    </div>
+  );
+}
 
+// ── Badge ─────────────────────────────────────────────────
+function StatusBadge({ status }: { status: AdminDriver["status"] }) {
+  const map = {
+    verified: "bg-green-light text-green-dark",
+    pending: "bg-yellow-100 text-yellow-700",
+    banned: "bg-red-100 text-red-600",
+  };
+  return (
+    <span className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-body font-semibold ${map[status]}`}>
+      {status === "verified" && <ShieldCheck size={9} />}
+      {status.charAt(0).toUpperCase() + status.slice(1)}
+    </span>
+  );
+}
 
-const MOCK_USERS = [
-  { id: "u1", phone: "+91 xxxxx1234", warningCount: 0, isBanned: false },
-  { id: "u2", phone: "+91 xxxxx5678", warningCount: 1, isBanned: false },
-  { id: "u3", phone: "+91 xxxxx9101", warningCount: 0, isBanned: true },
-];
+// ── Time helper ───────────────────────────────────────────
+function fmtTime(ts: string) {
+  return new Date(ts).toLocaleString("en-IN", {
+    day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
+  });
+}
 
+// ── Main component ────────────────────────────────────────
 export default function AdminDashboard() {
-    const [driverSubTab, setDriverSubTab] = useState<"verified" | "unverified">("unverified");
-  const [activeTab, setActiveTab] = useState<Tab>("drivers");
-  const [drivers, setDrivers] = useState<Driver[]>([...MOCK_DRIVERS]);
-  const [reports, setReports] = useState<Report[]>([...MOCK_REPORTS]);
-  const [users, setUsers] = useState(MOCK_USERS);
+  const { logout } = useApp();
+  const navigate = useNavigate();
+
+  const [tab, setTab] = useState<"drivers" | "users" | "logs" | "reports" | "announce">("drivers");
+  const [driverSubTab, setDriverSubTab] = useState<"pending" | "verified">("pending");
+
+  const [drivers, setDrivers] = useState<AdminDriver[]>([]);
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [logs, setLogs] = useState<AdminLog[]>([]);
+  const [reports, setReports] = useState<AdminReport[]>([]);
+
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
   const [announcement, setAnnouncement] = useState("");
-  const [postedAnnouncement, setPostedAnnouncement] = useState("");
-  const [announcementSaved, setAnnouncementSaved] = useState(false);
+  const [announceSending, setAnnounceSending] = useState(false);
+  const [announceSuccess, setAnnounceSuccess] = useState(false);
 
-  const totalDrivers = drivers.length;
-  const verified = drivers.filter(d => d.status === "verified").length;
-  const pending = drivers.filter(d => d.status === "pending").length;
-  const openReports = reports.filter(r => r.status === "pending").length;
+  const BASE = "http://127.0.0.1:5000";
 
-  const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
-    { id: "drivers", label: "Drivers", icon: <ShieldCheck size={14} /> },
-    { id: "users", label: "Users", icon: <Users size={14} /> },
-    { id: "logs", label: "Call Logs", icon: <Phone size={14} /> },
-    { id: "reports", label: "Reports", icon: <FileText size={14} /> },
-    { id: "announcement", label: "Announcement", icon: <Megaphone size={14} /> },
-  ];
-
-  // Driver actions
-  const toggleVerify = (id: string) => {
-    setDrivers(ds => ds.map(d => d.id === id
-      ? { ...d, isVerified: !d.isVerified, status: d.isVerified ? "pending" as const : "verified" as const }
-      : d
-    ));
-  };
-
-  const warnDriver = (id: string) => {
-    setDrivers(ds => ds.map(d => {
-      if (d.id !== id) return d;
-      const wc = d.warningCount + 1;
-      return { ...d, warningCount: wc, status: wc >= 3 ? "banned" as const : d.status };
-    }));
-  };
-
-  const removeDriver = (id: string) => setDrivers(ds => ds.filter(d => d.id !== id));
-
-  // User actions
-  const warnUser = (id: string) => {
-    setUsers(us => us.map(u => {
-      if (u.id !== id) return u;
-      const wc = u.warningCount + 1;
-      return { ...u, warningCount: wc, isBanned: wc >= 3 };
-    }));
-  };
-
-  const banUser = (id: string) => setUsers(us => us.map(u => u.id === id ? { ...u, isBanned: true } : u));
-
-  // Report actions
-  const resolveReport = (id: string) => {
-    setReports(rs => rs.map(r => r.id === id ? { ...r, status: "resolved" as const } : r));
-  };
-
-  // Announcement
-  const handlePostAnnouncement = () => {
-    if (announcement.trim()) {
-      setPostedAnnouncement(announcement.trim());
-      setAnnouncementSaved(true);
-      setTimeout(() => setAnnouncementSaved(false), 3000);
+  // ── Fetch all data ──────────────────────────────────────
+  const fetchAll = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [d, u, l, r] = await Promise.all([
+        adminGetDrivers(),
+        adminGetUsers(),
+        adminGetLogs(),
+        adminGetReports(),
+      ]);
+      setDrivers(d as AdminDriver[]);
+      setUsers(u as AdminUser[]);
+      setLogs(l as AdminLog[]);
+      setReports(r as AdminReport[]);
+    } catch {
+      // individual tabs will show empty state
+    } finally {
+      setLoading(false);
     }
+  }, []);
+
+  useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  // ── Actions ─────────────────────────────────────────────
+  const approveDriver = async (id: string) => {
+    setActionLoading(id + "_approve");
+    try {
+      await adminVerifyDriver(id, true);
+      setDrivers(prev => prev.map(d => d.id === id ? { ...d, status: "verified" } : d));
+    } finally { setActionLoading(null); }
   };
+
+  const warnEntity = async (type: "driver" | "user", id: string) => {
+    setActionLoading(id + "_warn");
+    try {
+      await adminWarn(type, id);
+      if (type === "driver") {
+        setDrivers(prev => prev.map(d => d.id === id ? { ...d, warningCount: d.warningCount + 1 } : d));
+      } else {
+        setUsers(prev => prev.map(u => u.id === id ? { ...u, reportCount: u.reportCount + 1 } : u));
+      }
+    } finally { setActionLoading(null); }
+  };
+
+  const removeEntity = async (type: "driver" | "user", id: string) => {
+    if (!confirm("Are you sure? This cannot be undone.")) return;
+    setActionLoading(id + "_remove");
+    try {
+      await adminRemove(type, id);
+      if (type === "driver") setDrivers(prev => prev.filter(d => d.id !== id));
+      else setUsers(prev => prev.filter(u => u.id !== id));
+    } finally { setActionLoading(null); }
+  };
+
+  const resolveReport = async (id: string) => {
+    setActionLoading(id + "_resolve");
+    try {
+      await adminResolveReport(id);
+      setReports(prev => prev.map(r => r.id === id ? { ...r, resolved: true } : r));
+    } finally { setActionLoading(null); }
+  };
+
+  const sendAnnouncement = async () => {
+    if (!announcement.trim()) return;
+    setAnnounceSending(true);
+    try {
+      await fetch(`${BASE}/admin/announcement`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ message: announcement.trim() }),
+      });
+      setAnnounceSuccess(true);
+      setAnnouncement("");
+      setTimeout(() => setAnnounceSuccess(false), 3000);
+    } finally { setAnnounceSending(false); }
+  };
+
+  // ── Derived ─────────────────────────────────────────────
+  const pending = drivers.filter(d => d.status === "pending");
+  const verified = drivers.filter(d => d.status === "verified");
+  const openReports = reports.filter(r => !r.resolved);
+
+  const TABS = [
+    { key: "drivers", label: "Drivers", icon: <Car size={14} /> },
+    { key: "users", label: "Users", icon: <Users size={14} /> },
+    { key: "logs", label: "Call Logs", icon: <Phone size={14} /> },
+    { key: "reports", label: `Reports${openReports.length > 0 ? ` (${openReports.length})` : ""}`, icon: <AlertTriangle size={14} /> },
+    { key: "announce", label: "Announce", icon: <Megaphone size={14} /> },
+  ] as const;
 
   return (
-    <main className="min-h-screen bg-background pt-24 pb-16">
-      <div className="max-w-[1100px] mx-auto px-5">
+    <div className="min-h-screen bg-background">
 
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="font-heading text-2xl font-bold">Admin Dashboard</h1>
-          <p className="font-malayalam text-xs text-muted-foreground mt-0.5">അഡ്മിൻ ഡാഷ്ബോർഡ്</p>
+      {/* Top bar */}
+      <div className="bg-foreground text-primary-foreground px-6 py-4 flex items-center justify-between">
+        <div>
+          <h1 className="font-heading text-lg font-bold">RydeLy Admin</h1>
+          <p className="font-body text-xs text-primary-foreground/60">Management Dashboard</p>
         </div>
-
-        {/* Stats row */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-          {[
-            { label: "Total Drivers", value: totalDrivers, color: "text-foreground" },
-            { label: "Verified", value: verified, color: "text-green-dark" },
-            { label: "Pending", value: pending, color: "text-amber-dark" },
-            { label: "Total Calls", value: MOCK_CALL_LOGS.length, color: "text-primary" },
-            { label: "Open Reports", value: openReports, color: "text-red-500" },
-          ].map(s => (
-            <div key={s.label} className="bg-card rounded-card p-5 shadow-card border border-border-warm text-center">
-              <p className={`font-heading text-2xl font-bold ${s.color}`}>{s.value}</p>
-              <p className="font-body text-xs text-muted-foreground mt-1">{s.label}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Tabs */}
-        <div className="flex gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide">
-          {tabs.map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`inline-flex items-center gap-2 btn-pill text-sm font-medium whitespace-nowrap transition-all ${
-                activeTab === tab.id
-                  ? "bg-foreground text-primary-foreground"
-                  : "bg-card text-foreground border border-border-warm hover:border-primary hover:text-primary"
-              }`}
-            >
-              {tab.icon} {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Tab content */}
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.2 }}
-            className="bg-card rounded-card shadow-card border border-border-warm overflow-hidden"
+        <div className="flex items-center gap-3">
+          <button
+            onClick={fetchAll}
+            className="flex items-center gap-1.5 font-body text-xs text-primary-foreground/70 hover:text-primary-foreground transition-colors"
           >
-
-            {/* DRIVERS TAB */}
-            {activeTab === "drivers" && (
-  <div>
-    {/* Sub tabs */}
-    <div className="flex border-b border-border-warm">
-      <button
-        onClick={() => setDriverSubTab("unverified")}
-        className={`px-6 py-3 font-body text-sm font-medium transition-all ${
-          driverSubTab === "unverified"
-            ? "border-b-2 border-primary text-primary"
-            : "text-muted-foreground hover:text-foreground"
-        }`}
-      >
-        Pending Approval ({drivers.filter(d => d.status === "pending").length})
-      </button>
-      <button
-        onClick={() => setDriverSubTab("verified")}
-        className={`px-6 py-3 font-body text-sm font-medium transition-all ${
-          driverSubTab === "verified"
-            ? "border-b-2 border-primary text-primary"
-            : "text-muted-foreground hover:text-foreground"
-        }`}
-      >
-        Verified Drivers ({drivers.filter(d => d.status === "verified").length})
-      </button>
-    </div>
-
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="bg-foreground text-primary-foreground">
-            {["Name", "Phone", "Auto No.", "Stand", "Town", "Warnings", "Actions"].map(h => (
-              <th key={h} className="text-left p-4 font-heading font-bold text-xs">{h}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {drivers
-            .filter(d => driverSubTab === "verified" ? d.status === "verified" : d.status === "pending" || d.status === "banned")
-            .map((d, i) => (
-              <tr key={d.id} className={`border-t border-border-warm ${i % 2 === 0 ? "bg-background" : "bg-card"}`}>
-                <td className="p-4 font-body font-medium">{d.name}</td>
-                <td className="p-4 font-body text-xs font-medium text-primary">+91 98765{d.id.padStart(5, "0")}</td>
-                <td className="p-4 font-body text-muted-foreground text-xs">{d.autoNumber}</td>
-                <td className="p-4 font-body text-muted-foreground text-xs">{d.stand}</td>
-                <td className="p-4 font-body text-muted-foreground text-xs">{d.town}</td>
-                <td className="p-4 font-body text-muted-foreground text-xs">{d.warningCount} / 3</td>
-                <td className="p-4">
-                  <div className="flex gap-1.5 flex-wrap">
-                    <button
-                      onClick={() => toggleVerify(d.id)}
-                      className="inline-flex items-center gap-1 px-2 py-1 text-[10px] rounded-lg font-body font-semibold bg-green-light text-green-dark border border-green-dark/20 hover:bg-green-dark hover:text-white transition-all"
-                    >
-                      {d.isVerified ? <><ShieldOff size={10} /> Unverify</> : <><ShieldCheck size={10} /> Approve</>}
-                    </button>
-                    <button
-                      onClick={() => warnDriver(d.id)}
-                      className="inline-flex items-center gap-1 px-2 py-1 text-[10px] rounded-lg font-body font-semibold bg-amber-light text-amber-dark border border-amber-dark/20 hover:bg-amber-dark hover:text-white transition-all"
-                    >
-                      <AlertTriangle size={10} /> Warn
-                    </button>
-                    <button
-                      onClick={() => removeDriver(d.id)}
-                      className="inline-flex items-center gap-1 px-2 py-1 text-[10px] rounded-lg font-body font-semibold bg-red-light text-red-dark border border-red-dark/20 hover:bg-red-500 hover:text-white transition-all"
-                    >
-                      <Trash2 size={10} /> Remove
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-        </tbody>
-      </table>
-
-      {drivers.filter(d => driverSubTab === "verified" ? d.status === "verified" : d.status === "pending" || d.status === "banned").length === 0 && (
-        <div className="text-center py-10">
-          <p className="font-body text-sm text-muted-foreground">No drivers in this category.</p>
+            <RefreshCw size={13} /> Refresh
+          </button>
+          <button
+            onClick={() => { logout(); navigate("/login"); }}
+            className="font-body text-xs text-primary-foreground/70 hover:text-red-400 transition-colors"
+          >
+            Sign out
+          </button>
         </div>
-      )}
-    </div>
-  </div>
-)}
+      </div>
 
-            {/* USERS TAB */}
-            {activeTab === "users" && (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-foreground text-primary-foreground">
-                      {["Phone", "Status", "Warnings", "Actions"].map(h => (
-                        <th key={h} className="text-left p-4 font-heading font-bold text-xs">{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {users.map((u, i) => (
-                      <tr key={u.id} className={`border-t border-border-warm ${i % 2 === 0 ? "bg-background" : "bg-card"}`}>
-                        <td className="p-4 font-body font-medium">{u.phone}</td>
-                        <td className="p-4">
-                          {u.isBanned ? (
-                            <span className="text-[10px] bg-red-light text-red-dark px-2 py-0.5 rounded-full font-body font-semibold">Banned</span>
-                          ) : (
-                            <span className="text-[10px] bg-green-light text-green-dark px-2 py-0.5 rounded-full font-body font-semibold">Active</span>
-                          )}
-                        </td>
-                        <td className="p-4 font-body text-muted-foreground text-xs">{u.warningCount} / 3</td>
-                        <td className="p-4">
-                          <div className="flex gap-1.5">
-                            <button
-                              onClick={() => warnUser(u.id)}
-                              disabled={u.isBanned}
-                              className="inline-flex items-center gap-1 px-2 py-1 text-[10px] rounded-lg font-body font-semibold bg-amber-light text-amber-dark border border-amber-dark/20 hover:bg-amber-dark hover:text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                            >
-                              <AlertTriangle size={10} /> Warn
-                            </button>
-                            <button
-                              onClick={() => banUser(u.id)}
-                              disabled={u.isBanned}
-                              className="inline-flex items-center gap-1 px-2 py-1 text-[10px] rounded-lg font-body font-semibold bg-red-light text-red-dark border border-red-dark/20 hover:bg-red-500 hover:text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                            >
-                              <X size={10} /> Ban
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+      <div className="max-w-[960px] mx-auto px-5 py-8 space-y-6">
 
-            {/* CALL LOGS TAB */}
-            {activeTab === "logs" && (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-foreground text-primary-foreground">
-                      {["User", "Driver", "Stand", "Town", "Time", "Reported"].map(h => (
-                        <th key={h} className="text-left p-4 font-heading font-bold text-xs">{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {MOCK_CALL_LOGS.map((log: CallLog, i: number) => (
-                      <tr key={log.id} className={`border-t border-border-warm ${i % 2 === 0 ? "bg-background" : "bg-card"}`}>
-                        <td className="p-4 font-body text-muted-foreground text-xs">+91 xxxxx{(i + 1).toString().padStart(4, "0")}</td>
-                        <td className="p-4 font-body font-medium">{log.driverName}</td>
-                        <td className="p-4 font-body text-muted-foreground text-xs">{log.stand}</td>
-                        <td className="p-4 font-body text-muted-foreground text-xs">{log.town}</td>
-                        <td className="p-4 font-body text-muted-foreground text-xs">
-                          <span className="inline-flex items-center gap-1"><Clock size={10} /> {log.timestamp}</span>
-                        </td>
-                        <td className="p-4">
-                          {log.reported ? (
-                            <span className="text-[10px] bg-red-light text-red-dark px-2 py-0.5 rounded-full font-body font-semibold">Yes</span>
-                          ) : (
-                            <span className="text-[10px] bg-green-light text-green-dark px-2 py-0.5 rounded-full font-body font-semibold">No</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+        {/* Stats */}
+        {!loading && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <StatCard icon={<Car size={15} className="text-primary" />} label="Total Drivers" value={drivers.length} sub={`${verified.length} verified`} />
+            <StatCard icon={<Clock size={15} className="text-primary" />} label="Pending" value={pending.length} sub="awaiting approval" />
+            <StatCard icon={<Users size={15} className="text-primary" />} label="Users" value={users.length} />
+            <StatCard icon={<AlertTriangle size={15} className="text-primary" />} label="Open Reports" value={openReports.length} />
+          </div>
+        )}
 
-            {/* REPORTS TAB */}
-            {activeTab === "reports" && (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-foreground text-primary-foreground">
-                      {["Reporter", "Driver", "Reason", "Time", "Status", "Action"].map(h => (
-                        <th key={h} className="text-left p-4 font-heading font-bold text-xs">{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {reports.map((r: Report, i: number) => (
-                      <tr key={r.id} className={`border-t border-border-warm ${i % 2 === 0 ? "bg-background" : "bg-card"}`}>
-                        <td className="p-4 font-body text-muted-foreground text-xs">{r.reporterPhone}</td>
-                        <td className="p-4 font-body font-medium">{r.driverName}</td>
-                        <td className="p-4 font-body text-muted-foreground text-xs max-w-[180px] truncate">{r.reason}</td>
-                        <td className="p-4 font-body text-muted-foreground text-xs">{r.timestamp}</td>
-                        <td className="p-4">
-                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-body font-semibold capitalize ${r.status === "pending" ? "bg-amber-light text-amber-dark" : "bg-green-light text-green-dark"}`}>
-                            {r.status}
-                          </span>
-                        </td>
-                        <td className="p-4">
-                          {r.status === "pending" && (
-                            <button
-                              onClick={() => resolveReport(r.id)}
-                              className="inline-flex items-center gap-1 px-2 py-1 text-[10px] rounded-lg font-body font-semibold bg-green-light text-green-dark border border-green-dark/20 hover:bg-green-dark hover:text-white transition-all"
-                            >
-                              <CheckCircle size={10} /> Resolve
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+        {/* Loading */}
+        {loading && (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 size={28} className="animate-spin text-primary" />
+          </div>
+        )}
 
-            {/* ANNOUNCEMENT TAB */}
-            {activeTab === "announcement" && (
-              <div className="p-8 space-y-6">
-                <div>
-                  <h2 className="font-heading text-lg font-bold">Post Announcement</h2>
-                  <p className="font-body text-sm text-muted-foreground mt-1">
-                    This will be shown to all commuters on the home page.
-                  </p>
-                  <p className="font-malayalam text-xs text-muted-foreground mt-0.5">
-                    എല്ലാ ഉപഭോക്താക്കൾക്കും ഒരു അറിയിപ്പ് അയക്കുക
-                  </p>
-                </div>
+        {!loading && (
+          <>
+            {/* Tab bar */}
+            <div className="flex gap-1 bg-cream-dark rounded-xl p-1 overflow-x-auto">
+              {TABS.map(t => (
+                <button
+                  key={t.key}
+                  onClick={() => setTab(t.key)}
+                  className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-body text-sm font-medium whitespace-nowrap transition-all ${
+                    tab === t.key
+                      ? "bg-card shadow-sm text-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {t.icon} {t.label}
+                </button>
+              ))}
+            </div>
 
-                <textarea
-                  value={announcement}
-                  onChange={e => setAnnouncement(e.target.value)}
-                  placeholder="Type your announcement here... (e.g. Service will be unavailable on Sunday 9AM–12PM for maintenance)"
-                  rows={5}
-                  className="w-full px-4 py-3 bg-cream-dark border-2 border-border-warm rounded-xl font-body text-sm focus:border-primary outline-none transition-colors resize-none"
-                />
-
-                <div className="flex items-center gap-4">
-                  <button
-                    onClick={handlePostAnnouncement}
-                    disabled={!announcement.trim()}
-                    className="btn-pill bg-primary text-primary-foreground font-medium shadow-orange-glow hover:bg-[hsl(var(--yellow))] hover:text-foreground transition-all disabled:bg-[hsl(var(--cream-dark))] disabled:text-muted-foreground disabled:shadow-none disabled:cursor-not-allowed inline-flex items-center gap-2"
-                  >
-                    <Megaphone size={15} /> Post Announcement
-                  </button>
-
-                  {announcement && (
+            {/* ── DRIVERS TAB ── */}
+            {tab === "drivers" && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                <div className="flex gap-2 mb-4">
+                  {(["pending", "verified"] as const).map(st => (
                     <button
-                      onClick={() => setAnnouncement("")}
-                      className="font-body text-sm text-muted-foreground hover:text-red-500 transition-colors"
+                      key={st}
+                      onClick={() => setDriverSubTab(st)}
+                      className={`px-4 py-1.5 rounded-full font-body text-xs font-semibold transition-all ${
+                        driverSubTab === st
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-cream-dark text-muted-foreground hover:text-foreground"
+                      }`}
                     >
-                      Clear
+                      {st === "pending" ? `Pending (${pending.length})` : `Verified (${verified.length})`}
                     </button>
-                  )}
-
-                  <AnimatePresence>
-                    {announcementSaved && (
-                      <motion.span
-                        initial={{ opacity: 0, x: -8 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0 }}
-                        className="inline-flex items-center gap-1 font-body text-sm text-green-dark"
-                      >
-                        <CheckCircle size={14} /> Posted!
-                      </motion.span>
-                    )}
-                  </AnimatePresence>
+                  ))}
                 </div>
 
-                {/* Current announcement preview */}
-                {postedAnnouncement && (
-                  <div className="mt-4">
-                    <p className="font-body text-xs text-muted-foreground uppercase tracking-wider mb-2 font-medium">Current Live Announcement</p>
-                    <div className="flex items-start gap-3 bg-amber-light border border-amber-dark/20 rounded-xl px-4 py-4">
-                      <Megaphone size={16} className="text-amber-dark flex-shrink-0 mt-0.5" />
-                      <p className="font-body text-sm text-amber-dark">{postedAnnouncement}</p>
+                <div className="space-y-3">
+                  {(driverSubTab === "pending" ? pending : verified).map(driver => (
+                    <div key={driver.id} className="bg-card rounded-2xl border border-border-warm shadow-card px-5 py-4">
+                      <div className="flex items-start gap-4">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-yellow-300 flex items-center justify-center text-white font-heading font-bold flex-shrink-0">
+                          {driver.name[0]}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-heading text-base font-bold">{driver.name}</span>
+                            <StatusBadge status={driver.status} />
+                            {driver.warningCount > 0 && (
+                              <span className="text-[10px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-body font-semibold">
+                                {driver.warningCount} warning{driver.warningCount > 1 ? "s" : ""}
+                              </span>
+                            )}
+                          </div>
+                          <p className="font-body text-xs text-muted-foreground mt-0.5">
+                            {driver.phone} · {driver.autoNumber}
+                          </p>
+                          <p className="font-body text-xs text-muted-foreground">
+                            {driver.stand}, {driver.town}
+                          </p>
+                        </div>
+                        <div className="flex flex-col gap-2 flex-shrink-0">
+                          {driver.status === "pending" && (
+                            <button
+                              onClick={() => approveDriver(driver.id)}
+                              disabled={actionLoading === driver.id + "_approve"}
+                              className="flex items-center gap-1 px-3 py-1.5 bg-green-500 text-white rounded-lg font-body text-xs font-medium hover:bg-green-600 transition-all disabled:opacity-50"
+                            >
+                              {actionLoading === driver.id + "_approve"
+                                ? <Loader2 size={12} className="animate-spin" />
+                                : <CheckCircle size={12} />}
+                              Approve
+                            </button>
+                          )}
+                          <button
+                            onClick={() => warnEntity("driver", driver.id)}
+                            disabled={!!actionLoading}
+                            className="flex items-center gap-1 px-3 py-1.5 bg-yellow-100 text-yellow-700 rounded-lg font-body text-xs font-medium hover:bg-yellow-200 transition-all disabled:opacity-50"
+                          >
+                            {actionLoading === driver.id + "_warn"
+                              ? <Loader2 size={12} className="animate-spin" />
+                              : <AlertTriangle size={12} />}
+                            Warn
+                          </button>
+                          <button
+                            onClick={() => removeEntity("driver", driver.id)}
+                            disabled={!!actionLoading}
+                            className="flex items-center gap-1 px-3 py-1.5 bg-red-100 text-red-600 rounded-lg font-body text-xs font-medium hover:bg-red-200 transition-all disabled:opacity-50"
+                          >
+                            {actionLoading === driver.id + "_remove"
+                              ? <Loader2 size={12} className="animate-spin" />
+                              : <XCircle size={12} />}
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {(driverSubTab === "pending" ? pending : verified).length === 0 && (
+                    <div className="text-center py-12 text-muted-foreground font-body text-sm">
+                      No {driverSubTab} drivers
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+
+            {/* ── USERS TAB ── */}
+            {tab === "users" && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
+                {users.map(user => (
+                  <div key={user.id} className="bg-card rounded-2xl border border-border-warm shadow-card px-5 py-4 flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-cyan-300 flex items-center justify-center text-white font-heading font-bold flex-shrink-0">
+                      {user.name?.[0] ?? "?"}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-heading text-base font-bold">{user.name || "—"}</p>
+                      <p className="font-body text-xs text-muted-foreground">{user.phone}</p>
+                      <p className="font-body text-xs text-muted-foreground">
+                        {user.callCount} calls · {user.reportCount} reports filed
+                      </p>
+                    </div>
+                    <div className="flex flex-col gap-2 flex-shrink-0">
                       <button
-                        onClick={() => setPostedAnnouncement("")}
-                        className="ml-auto text-amber-dark hover:text-red-500 transition-colors flex-shrink-0"
+                        onClick={() => warnEntity("user", user.id)}
+                        disabled={!!actionLoading}
+                        className="flex items-center gap-1 px-3 py-1.5 bg-yellow-100 text-yellow-700 rounded-lg font-body text-xs font-medium hover:bg-yellow-200 transition-all disabled:opacity-50"
                       >
-                        <X size={14} />
+                        {actionLoading === user.id + "_warn"
+                          ? <Loader2 size={12} className="animate-spin" />
+                          : <AlertTriangle size={12} />}
+                        Warn
+                      </button>
+                      <button
+                        onClick={() => removeEntity("user", user.id)}
+                        disabled={!!actionLoading}
+                        className="flex items-center gap-1 px-3 py-1.5 bg-red-100 text-red-600 rounded-lg font-body text-xs font-medium hover:bg-red-200 transition-all disabled:opacity-50"
+                      >
+                        {actionLoading === user.id + "_remove"
+                          ? <Loader2 size={12} className="animate-spin" />
+                          : <XCircle size={12} />}
+                        Remove
                       </button>
                     </div>
                   </div>
+                ))}
+                {users.length === 0 && (
+                  <div className="text-center py-12 text-muted-foreground font-body text-sm">No users yet</div>
                 )}
-              </div>
+              </motion.div>
             )}
 
-          </motion.div>
-        </AnimatePresence>
+            {/* ── LOGS TAB ── */}
+            {tab === "logs" && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
+                {logs.map(log => (
+                  <div key={log.id} className="bg-card rounded-2xl border border-border-warm shadow-card px-5 py-4 flex items-center gap-4">
+                    <div className="w-9 h-9 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
+                      <Phone size={14} className="text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-body text-sm font-semibold">{log.driverName}</p>
+                      <p className="font-body text-xs text-muted-foreground">{log.stand}, {log.town}</p>
+                      <p className="font-body text-xs text-muted-foreground">Caller: {log.commuterPhone}</p>
+                    </div>
+                    <div className="flex items-center gap-1 font-body text-[11px] text-muted-foreground flex-shrink-0">
+                      <Clock size={11} />
+                      {fmtTime(log.timestamp)}
+                    </div>
+                  </div>
+                ))}
+                {logs.length === 0 && (
+                  <div className="text-center py-12 text-muted-foreground font-body text-sm">No call logs yet</div>
+                )}
+              </motion.div>
+            )}
+
+            {/* ── REPORTS TAB ── */}
+            {tab === "reports" && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
+                {reports.map(report => (
+                  <div key={report.id} className={`bg-card rounded-2xl border shadow-card px-5 py-4 ${report.resolved ? "border-border-warm opacity-60" : "border-red-200"}`}>
+                    <div className="flex items-start gap-3">
+                      <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${report.resolved ? "bg-green-100" : "bg-red-100"}`}>
+                        {report.resolved
+                          ? <CheckCircle size={14} className="text-green-600" />
+                          : <AlertTriangle size={14} className="text-red-500" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-body text-sm font-semibold">{report.targetName}</p>
+                          <span className="text-[10px] bg-cream-dark text-muted-foreground px-2 py-0.5 rounded-full font-body">
+                            {report.type}
+                          </span>
+                          {report.resolved && (
+                            <span className="text-[10px] bg-green-light text-green-dark px-2 py-0.5 rounded-full font-body font-semibold">
+                              Resolved
+                            </span>
+                          )}
+                        </div>
+                        <p className="font-body text-xs text-muted-foreground mt-0.5">
+                          Reported by: {report.reporterPhone}
+                        </p>
+                        <p className="font-body text-sm text-foreground mt-2 leading-relaxed">{report.reason}</p>
+                        <p className="font-body text-[11px] text-muted-foreground mt-1">{fmtTime(report.timestamp)}</p>
+                      </div>
+                      {!report.resolved && (
+                        <button
+                          onClick={() => resolveReport(report.id)}
+                          disabled={actionLoading === report.id + "_resolve"}
+                          className="flex items-center gap-1 px-3 py-1.5 bg-green-500 text-white rounded-lg font-body text-xs font-medium hover:bg-green-600 transition-all disabled:opacity-50 flex-shrink-0"
+                        >
+                          {actionLoading === report.id + "_resolve"
+                            ? <Loader2 size={12} className="animate-spin" />
+                            : <CheckCircle size={12} />}
+                          Resolve
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {reports.length === 0 && (
+                  <div className="text-center py-12 text-muted-foreground font-body text-sm">No reports yet</div>
+                )}
+              </motion.div>
+            )}
+
+            {/* ── ANNOUNCE TAB ── */}
+            {tab === "announce" && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-[560px] space-y-5">
+                <div>
+                  <h2 className="font-heading text-lg font-bold">Post Announcement</h2>
+                  <p className="font-body text-sm text-muted-foreground mt-0.5">
+                    This message will be visible to all drivers on their portal
+                  </p>
+                </div>
+                <textarea
+                  value={announcement}
+                  onChange={e => setAnnouncement(e.target.value)}
+                  placeholder="Type your announcement here..."
+                  rows={5}
+                  className="w-full px-4 py-3 bg-cream-dark border-2 border-border-warm rounded-xl font-body text-sm focus:border-primary outline-none transition-colors resize-none"
+                />
+                {announcement.trim() && (
+                  <div className="bg-card border border-border-warm rounded-xl p-4">
+                    <p className="font-body text-[11px] text-muted-foreground mb-2 uppercase tracking-wide font-semibold">Preview</p>
+                    <p className="font-body text-sm text-foreground leading-relaxed">{announcement}</p>
+                  </div>
+                )}
+                {announceSuccess && (
+                  <div className="flex items-center gap-2 bg-green-50 border border-green-200 text-green-700 rounded-xl px-4 py-3 font-body text-sm">
+                    <CheckCircle size={15} /> Announcement sent successfully
+                  </div>
+                )}
+                <button
+                  onClick={sendAnnouncement}
+                  disabled={!announcement.trim() || announceSending}
+                  className="btn-pill bg-primary text-primary-foreground font-medium shadow-orange-glow hover:bg-[hsl(var(--yellow))] hover:text-foreground transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {announceSending
+                    ? <><Loader2 size={15} className="animate-spin" /> Sending...</>
+                    : <><Megaphone size={15} /> Send Announcement</>}
+                </button>
+              </motion.div>
+            )}
+          </>
+        )}
       </div>
-    </main>
+    </div>
   );
 }

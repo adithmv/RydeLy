@@ -107,49 +107,48 @@ export async function reportCommuter(commuterPhone: string, reason: string) {
   });
 }
 
-// ── ADMIN ─────────────────────────────────────────────────
+// ── ADMIN TYPES ───────────────────────────────────────────
 export interface AdminDriver {
   id: string;
   name: string;
   phone: string;
-  autoNumber: string;
-  stand: string;
   town: string;
-  isVerified: boolean;
-  isBanned: boolean;
+  stand: string;
+  autoNumber: string;
+  status: "verified" | "pending" | "banned";
   warningCount: number;
-  status: string;
+  isAvailable: boolean;
 }
 
 export interface AdminUser {
   id: string;
+  name: string;
   phone: string;
-  isBanned: boolean;
-  warningCount: number;
+  callCount: number;
+  reportCount: number;
+  joinedAt: string;
 }
 
 export interface AdminLog {
   id: string;
-  userId: string;
-  driverId: string;
+  commuterPhone: string;
   driverName: string;
   stand: string;
   town: string;
   timestamp: string;
-  wasReported: boolean;
 }
 
 export interface AdminReport {
   id: string;
-  reportedBy: string;
-  reportedType: string;
-  targetId: string;
+  type: "driver" | "commuter";
+  reporterPhone: string;
+  targetName: string;
   reason: string;
-  resolvedByAdmin: boolean;
   timestamp: string;
-  status: string;
+  resolved: boolean;
 }
 
+// ── ADMIN FUNCTIONS ───────────────────────────────────────
 export async function adminGetDrivers() {
   return request<AdminDriver[]>("/admin/drivers");
 }
