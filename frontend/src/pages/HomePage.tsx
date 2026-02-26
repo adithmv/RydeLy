@@ -1,16 +1,42 @@
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "@/context/AppContext";
-import { TOWNS, STANDS } from "@/data/mockData";
 import { motion } from "framer-motion";
 import { MapPin, Navigation, Search, ChevronDown, Clock, ShieldCheck, Phone } from "lucide-react";
+
+const BASE = "http://127.0.0.1:5000";
+
+interface Stand {
+  id: string;
+  name: string;
+  town: string;
+}
 
 export default function HomePage() {
   const navigate = useNavigate();
   const { selectedTown, selectedStand, setSelectedTown, setSelectedStand } = useApp();
 
+  const [stands, setStands] = useState<Stand[]>([]);
+
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
   const greetingMalayalam = hour < 12 ? "സുപ്രഭാതം" : hour < 17 ? "ശുഭ ഉച്ചയ്ക്ക്" : "ശുഭ സന്ധ്യ";
+
+  // ── Fetch stands on mount ─────────────────────────────
+  useEffect(() => {
+    fetch(`${BASE}/commuter/stands`, { credentials: "include" })
+      .then(r => r.json())
+      .then((data: Stand[]) => setStands(data))
+      .catch(() => {}); // silent fail — dropdowns just stay empty
+  }, []);
+
+  const towns = [...new Set(stands.map(s => s.town))].sort();
+  const filteredStands = stands.filter(s => s.town === selectedTown);
+
+  const handleTownChange = (town: string) => {
+    setSelectedTown(town);
+    setSelectedStand("");
+  };
 
   const handleFind = () => {
     if (selectedTown && selectedStand) {
@@ -23,8 +49,6 @@ export default function HomePage() {
 
       {/* Hero Banner */}
       <div className="bg-foreground text-primary-foreground pt-28 pb-20 px-5 relative overflow-hidden">
-
-        {/* Decorative rings */}
         <div className="absolute top-10 right-10 w-48 h-48 border border-white/5 rounded-full" />
         <div className="absolute top-20 right-20 w-32 h-32 border border-white/5 rounded-full" />
         <div className="absolute -bottom-10 -left-10 w-40 h-40 border border-white/5 rounded-full" />
@@ -43,8 +67,6 @@ export default function HomePage() {
             <p className="font-malayalam text-primary-foreground/60 text-sm mt-3">
               നിങ്ങളുടെ ഓട്ടോ കണ്ടെത്തുക
             </p>
-
-            {/* Quick stats */}
             <div className="flex items-center gap-5 mt-7">
               {[
                 { icon: <ShieldCheck size={14} className="text-yellow" />, text: "Verified drivers" },
@@ -61,7 +83,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Search Card — overlapping the hero */}
+      {/* Search Card */}
       <div className="max-w-[600px] mx-auto px-5 -mt-8 pb-16">
         <motion.div
           initial={{ opacity: 0, y: 24 }}
@@ -75,18 +97,16 @@ export default function HomePage() {
 
             {/* Town */}
             <div>
-              <label className="font-body text-sm font-medium text-foreground block mb-2">
-                Town
-              </label>
+              <label className="font-body text-sm font-medium text-foreground block mb-2">Town</label>
               <div className="relative">
                 <MapPin size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <select
                   value={selectedTown}
-                  onChange={e => setSelectedTown(e.target.value)}
+                  onChange={e => handleTownChange(e.target.value)}
                   className="w-full pl-10 pr-10 py-3 bg-cream-dark border-2 border-border-warm rounded-xl font-body text-sm focus:border-primary outline-none transition-colors appearance-none cursor-pointer"
                 >
                   <option value="">Select Town</option>
-                  {TOWNS.map((t: string) => <option key={t} value={t}>{t}</option>)}
+                  {towns.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
                 <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
               </div>
@@ -94,9 +114,7 @@ export default function HomePage() {
 
             {/* Stand */}
             <div>
-              <label className="font-body text-sm font-medium text-foreground block mb-2">
-                Auto Stand
-              </label>
+              <label className="font-body text-sm font-medium text-foreground block mb-2">Auto Stand</label>
               <div className="relative">
                 <Navigation size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <select
@@ -105,8 +123,10 @@ export default function HomePage() {
                   disabled={!selectedTown}
                   className="w-full pl-10 pr-10 py-3 bg-cream-dark border-2 border-border-warm rounded-xl font-body text-sm focus:border-primary outline-none transition-colors appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <option value="">Select Auto Stand</option>
-                  {selectedTown && STANDS[selectedTown]?.map((s: string) => <option key={s} value={s}>{s}</option>)}
+                  <option value="">
+                    {!selectedTown ? "Select a town first" : filteredStands.length === 0 ? "No stands found" : "Select Auto Stand"}
+                  </option>
+                  {filteredStands.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
                 </select>
                 <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
               </div>
@@ -126,8 +146,8 @@ export default function HomePage() {
           </p>
         </motion.div>
 
-        {/* Recent stand shortcuts — shown only if a town is selected */}
-        {selectedTown && (
+        {/* Stand shortcut pills */}
+        {selectedTown && filteredStands.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -138,24 +158,23 @@ export default function HomePage() {
               Stands in {selectedTown}
             </p>
             <div className="flex flex-wrap gap-2">
-              {STANDS[selectedTown]?.map((s: string) => (
+              {filteredStands.map(s => (
                 <button
-                  key={s}
-                  onClick={() => setSelectedStand(s)}
+                  key={s.id}
+                  onClick={() => setSelectedStand(s.name)}
                   className={`font-body text-xs px-3 py-1.5 rounded-full border transition-all ${
-                    selectedStand === s
+                    selectedStand === s.name
                       ? "bg-primary text-primary-foreground border-primary shadow-orange-glow"
                       : "bg-card border-border-warm text-muted-foreground hover:border-primary hover:text-primary"
                   }`}
                 >
-                  {s}
+                  {s.name}
                 </button>
               ))}
             </div>
           </motion.div>
         )}
       </div>
-
     </main>
   );
 }
