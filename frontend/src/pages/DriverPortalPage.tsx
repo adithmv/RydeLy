@@ -1,257 +1,267 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useApp } from "@/context/AppContext";
+import { setAvailability } from "@/lib/api";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  ShieldCheck, Phone, MapPin, AlertTriangle,
-  ToggleLeft, ToggleRight, CheckCircle, Clock
+  Phone, ShieldCheck, AlertTriangle, LogOut,
+  CheckCircle, XCircle, Loader2, Car
 } from "lucide-react";
+import { useApp } from "@/context/AppContext";
+
+interface DriverProfile {
+  name: string;
+  phone: string;
+  stand: string;
+  town: string;
+  autoNumber: string;
+  isAvailable: boolean;
+  warningCount: number;
+  callsThisWeek: number;
+  status: "verified" | "pending" | "banned";
+}
+
+const BASE = "http://127.0.0.1:5000";
 
 export default function DriverPortalPage() {
   const navigate = useNavigate();
-  const [isAvailable, setIsAvailable] = useState(false);
+  const { logout } = useApp();
+
+  const [profile, setProfile] = useState<DriverProfile | null>(null);
+  const [loadingProfile, setLoadingProfile] = useState(true);
+  const [fetchError, setFetchError] = useState("");
+
   const [toggling, setToggling] = useState(false);
-  const [toastMsg, setToastMsg] = useState("");
+  const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
 
-  const driver = {
-    name: "Rajan K",
-    phone: "+91 98765 43210",
-    autoNumber: "KL-58-A-1234",
-    stand: "Railway Station",
-    town: "Payyanur",
-    isVerified: true,
-    warningCount: 0,
-    callsThisWeek: 12,
-  };
+  // ── Fetch driver profile ──────────────────────────────────
+  useEffect(() => {
+    fetch(`${BASE}/driver/profile`, { credentials: "include" })
+      .then(r => {
+        if (!r.ok) throw new Error("Failed to load profile");
+        return r.json();
+      })
+      .then((data: DriverProfile) => setProfile(data))
+      .catch(err => setFetchError(err.message))
+      .finally(() => setLoadingProfile(false));
+  }, []);
 
-  const showToast = (msg: string) => {
-    setToastMsg(msg);
-    setTimeout(() => setToastMsg(""), 3000);
-  };
+  // ── Auto-dismiss toast ────────────────────────────────────
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 3000);
+    return () => clearTimeout(t);
+  }, [toast]);
 
+  // ── Toggle availability ───────────────────────────────────
   const handleToggle = async () => {
+    if (!profile || toggling) return;
     setToggling(true);
-    await new Promise((r) => setTimeout(r, 600));
-    setIsAvailable((prev) => {
-      const next = !prev;
-      showToast(
-        next
-          ? "You are now visible to commuters."
-          : "You are now hidden from the directory."
-      );
-      return next;
-    });
-    setToggling(false);
+    const newVal = !profile.isAvailable;
+    try {
+      await setAvailability(newVal);
+      setProfile(prev => prev ? { ...prev, isAvailable: newVal } : prev);
+      setToast({
+        msg: newVal ? "You are now visible to commuters" : "You are now offline",
+        type: "success",
+      });
+    } catch (err: unknown) {
+      setToast({
+        msg: err instanceof Error ? err.message : "Failed to update availability",
+        type: "error",
+      });
+    } finally {
+      setToggling(false);
+    }
   };
+
+  const handleLogout = async () => {
+    await fetch(`${BASE}/auth/logout`, { method: "POST", credentials: "include" });
+    logout();
+    navigate("/login");
+  };
+
+  // ── Loading ───────────────────────────────────────────────
+  if (loadingProfile) {
+    return (
+      <main className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 size={32} className="animate-spin text-primary" />
+      </main>
+    );
+  }
+
+  // ── Fetch error ───────────────────────────────────────────
+  if (fetchError || !profile) {
+    return (
+      <main className="min-h-screen bg-background flex items-center justify-center px-5">
+        <div className="text-center space-y-4">
+          <AlertTriangle size={32} className="text-red-400 mx-auto" />
+          <p className="font-body text-sm text-red-600">{fetchError || "Profile not found"}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="btn-pill bg-primary text-primary-foreground font-medium shadow-orange-glow hover:bg-[hsl(var(--yellow))] hover:text-foreground transition-all"
+          >
+            Retry
+          </button>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-background pt-24 pb-16">
-      <div className="max-w-[640px] mx-auto px-5 space-y-5">
 
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-        >
-          <h1 className="font-heading text-2xl font-bold">Driver Portal</h1>
-          <p className="font-malayalam text-xs text-muted-foreground mt-0.5">
-            ഡ്രൈവർ പോർട്ടൽ
-          </p>
-        </motion.div>
+      {/* Toast */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: -16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -16 }}
+            className={`fixed top-20 left-1/2 -translate-x-1/2 z-[300] px-5 py-3 rounded-full font-body text-sm font-medium shadow-lg flex items-center gap-2 ${
+              toast.type === "success"
+                ? "bg-foreground text-primary-foreground"
+                : "bg-red-500 text-white"
+            }`}
+          >
+            {toast.type === "success"
+              ? <CheckCircle size={15} />
+              : <XCircle size={15} />}
+            {toast.msg}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-        {/* Availability Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.1 }}
-          className={`rounded-card p-7 border-2 transition-all duration-500 ${
-            isAvailable
-              ? "bg-[#f0fdf4] border-green-300 shadow-[0_4px_24px_rgba(22,163,74,0.15)]"
-              : "bg-card border-[#E8DDD0] shadow-card"
-          }`}
-        >
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1">
-              <p className="font-body text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">
-                Availability
+      <div className="max-w-[520px] mx-auto px-5 space-y-5">
+
+        {/* Profile card */}
+        <div className="bg-card rounded-card border border-border-warm shadow-card p-6">
+          <div className="flex items-start gap-4">
+            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-orange-400 to-yellow-300 flex items-center justify-center text-white font-heading text-2xl font-bold flex-shrink-0">
+              {profile.name[0]}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="font-heading text-xl font-bold">{profile.name}</h1>
+                {profile.status === "verified" && (
+                  <span className="inline-flex items-center gap-1 text-[10px] bg-green-light text-green-dark px-2 py-0.5 rounded-full font-body font-semibold">
+                    <ShieldCheck size={10} /> Verified
+                  </span>
+                )}
+                {profile.status === "pending" && (
+                  <span className="inline-flex items-center gap-1 text-[10px] bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full font-body font-semibold">
+                    Pending Approval
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-1.5 mt-1">
+                <Phone size={12} className="text-muted-foreground" />
+                <p className="font-body text-sm text-muted-foreground">+91 {profile.phone}</p>
+              </div>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <Car size={12} className="text-muted-foreground" />
+                <p className="font-body text-xs text-muted-foreground">{profile.autoNumber} · {profile.stand}, {profile.town}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Stats row */}
+          <div className="grid grid-cols-3 gap-3 mt-5 pt-5 border-t border-border-warm">
+            {[
+              { label: "Calls this week", value: profile.callsThisWeek },
+              { label: "Warnings", value: profile.warningCount },
+              { label: "Status", value: profile.status === "verified" ? "Active" : "Pending" },
+            ].map(stat => (
+              <div key={stat.label} className="text-center">
+                <p className="font-heading text-xl font-bold">{stat.value}</p>
+                <p className="font-body text-[11px] text-muted-foreground mt-0.5">{stat.label}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Warning notice */}
+        {profile.warningCount > 0 && (
+          <div className="flex items-start gap-3 bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+            <AlertTriangle size={16} className="text-yellow-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-body text-sm font-semibold text-yellow-800">
+                You have {profile.warningCount} warning{profile.warningCount > 1 ? "s" : ""}
               </p>
-              <h2
-                className={`font-heading text-2xl font-bold transition-colors duration-300 ${
-                  isAvailable ? "text-green-700" : "text-foreground"
-                }`}
-              >
-                {isAvailable ? "You're Available" : "You're Offline"}
-              </h2>
+              <p className="font-body text-xs text-yellow-700 mt-0.5">
+                3 warnings will result in account removal. Please ensure professional conduct.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Availability toggle card */}
+        <div className="bg-card rounded-card border border-border-warm shadow-card p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="font-heading text-lg font-bold">Availability</h2>
+              <p className="font-malayalam text-xs text-muted-foreground mt-0.5">ലഭ്യത</p>
               <p className="font-body text-sm text-muted-foreground mt-1">
-                {isAvailable
-                  ? "Commuters can see you in the directory."
-                  : "You are hidden from all commuters."}
-              </p>
-              <p className="font-malayalam text-xs text-muted-foreground mt-0.5">
-                {isAvailable
-                  ? "ഉപഭോക്താക്കൾക്ക് നിങ്ങളെ കാണാൻ കഴിയും"
-                  : "നിങ്ങൾ ഡയറക്ടറിയിൽ ഇല്ല"}
+                {profile.isAvailable
+                  ? "You are visible to commuters"
+                  : "You are currently offline"}
               </p>
             </div>
 
+            {/* Toggle */}
             <button
               onClick={handleToggle}
-              disabled={toggling}
-              className={`flex-shrink-0 transition-all duration-300 rounded-full p-1 ${
-                toggling
-                  ? "opacity-50 cursor-not-allowed"
-                  : "cursor-pointer hover:scale-105"
-              }`}
+              disabled={toggling || profile.status !== "verified"}
+              className="relative flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-label="Toggle availability"
             >
-              {isAvailable ? (
-                <ToggleRight size={52} className="text-green-600" strokeWidth={1.5} />
+              {toggling ? (
+                <div className="w-16 h-9 rounded-full bg-cream-dark flex items-center justify-center">
+                  <Loader2 size={18} className="animate-spin text-muted-foreground" />
+                </div>
               ) : (
-                <ToggleLeft size={52} className="text-muted-foreground" strokeWidth={1.5} />
+                <motion.div
+                  className={`w-16 h-9 rounded-full flex items-center transition-colors duration-300 ${
+                    profile.isAvailable ? "bg-green-500" : "bg-gray-300"
+                  }`}
+                >
+                  <motion.div
+                    className="w-7 h-7 bg-white rounded-full shadow-md mx-1"
+                    animate={{ x: profile.isAvailable ? 28 : 0 }}
+                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                  />
+                </motion.div>
               )}
             </button>
           </div>
 
-          <div className="mt-5 flex items-center gap-2">
-            <span
-              className={`inline-flex items-center gap-1.5 text-xs font-body font-semibold px-3 py-1.5 rounded-full transition-all duration-300 ${
-                isAvailable
-                  ? "bg-green-100 text-green-700"
-                  : "bg-[hsl(var(--muted))] text-muted-foreground"
-              }`}
-            >
-              <span
-                className={`w-2 h-2 rounded-full transition-colors duration-300 ${
-                  isAvailable ? "bg-green-500 animate-pulse" : "bg-gray-400"
-                }`}
-              />
-              {isAvailable ? "Live in directory" : "Hidden from directory"}
-            </span>
-          </div>
-        </motion.div>
-
-        {/* Profile Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.2 }}
-          className="bg-card rounded-card p-6 border border-[#E8DDD0] shadow-card"
-        >
-          <div className="flex items-start gap-4">
-            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-orange-400 to-yellow-300 flex items-center justify-center text-white font-heading text-xl font-bold flex-shrink-0">
-              {driver.name[0]}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-heading text-lg font-bold">{driver.name}</span>
-                {driver.isVerified && (
-                  <span className="inline-flex items-center gap-1 text-[10px] bg-[hsl(var(--green-light))] text-[hsl(var(--green-dark))] px-2 py-0.5 rounded-full font-body font-semibold">
-                    <ShieldCheck size={10} /> Verified
-                  </span>
-                )}
-              </div>
-              <div className="mt-3 space-y-1.5">
-                <div className="flex items-center gap-2">
-                  <Phone size={13} className="text-muted-foreground flex-shrink-0" />
-                  <span className="font-body text-sm text-muted-foreground">{driver.phone}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <MapPin size={13} className="text-muted-foreground flex-shrink-0" />
-                  <span className="font-body text-sm text-muted-foreground">
-                    {driver.stand}, {driver.town}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="font-body text-xs text-muted-foreground font-medium">
-                    Auto: {driver.autoNumber}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-5 pt-4 border-t border-[#E8DDD0] grid grid-cols-3 gap-4 text-center">
-            <div>
-              <p className="font-heading text-xl font-bold text-primary">{driver.callsThisWeek}</p>
-              <p className="font-body text-[11px] text-muted-foreground mt-0.5">Calls this week</p>
-            </div>
-            <div>
-              <p className="font-heading text-xl font-bold text-foreground">{driver.warningCount}/3</p>
-              <p className="font-body text-[11px] text-muted-foreground mt-0.5">Warnings</p>
-            </div>
-            <div>
-              <p className={`font-heading text-xl font-bold ${driver.isVerified ? "text-green-600" : "text-amber-500"}`}>
-                {driver.isVerified ? "Active" : "Pending"}
-              </p>
-              <p className="font-body text-[11px] text-muted-foreground mt-0.5">Account status</p>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Warning notice — only shows if warnings > 0 */}
-        {driver.warningCount > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3"
-          >
-            <AlertTriangle size={15} className="text-amber-500 flex-shrink-0 mt-0.5" />
-            <p className="font-body text-sm text-amber-700">
-              You have {driver.warningCount} warning{driver.warningCount > 1 ? "s" : ""}. At 3 warnings your account will be automatically banned.
+          {profile.status !== "verified" && (
+            <p className="font-body text-xs text-muted-foreground mt-3 bg-cream-dark rounded-lg px-3 py-2">
+              Availability toggle is disabled until your account is approved by an admin.
             </p>
-          </motion.div>
-        )}
+          )}
 
-        {/* Report CTA */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.3 }}
-          className="bg-card rounded-card p-6 border border-[#E8DDD0] shadow-card"
-        >
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h3 className="font-heading text-base font-bold">Had a bad experience?</h3>
-              <p className="font-body text-sm text-muted-foreground mt-1">
-                Report a commuter who was rude, abusive, or a no-show after calling.
-              </p>
-              <p className="font-malayalam text-xs text-muted-foreground mt-0.5">
-                ഒരു ഉപഭോക്താവിനെ റിപ്പോർട്ട് ചെയ്യുക
-              </p>
-            </div>
-            <button
-              onClick={() => navigate("/driver/complaint")}
-              className="btn-pill bg-primary text-primary-foreground font-medium shadow-[var(--shadow-orange-glow)] hover:bg-[hsl(var(--yellow))] hover:text-foreground transition-all flex-shrink-0 text-sm"
-            >
-              Report
-            </button>
-          </div>
-        </motion.div>
-
-        {/* Reminder note */}
-        <div className="flex items-start gap-2 px-1">
-          <Clock size={13} className="text-muted-foreground flex-shrink-0 mt-0.5" />
-          <p className="font-body text-xs text-muted-foreground">
-            Availability does not reset automatically. Remember to mark yourself offline when you're done for the day.
+          <p className="font-body text-[11px] text-muted-foreground mt-3">
+            Remember to turn off availability when you finish for the day.
           </p>
         </div>
 
-      </div>
-
-      {/* Toast */}
-      <AnimatePresence>
-        {toastMsg && (
-          <motion.div
-            initial={{ opacity: 0, y: 40 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 40 }}
-            className="fixed bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-foreground text-primary-foreground px-5 py-3 rounded-full shadow-modal font-body text-sm font-medium z-50"
+        {/* Actions */}
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            onClick={() => navigate("/driver/complaint")}
+            className="btn-pill bg-card border border-border-warm text-foreground font-body text-sm font-medium hover:border-primary hover:text-primary transition-all flex items-center justify-center gap-2"
           >
-            <CheckCircle size={15} className="text-yellow-300" />
-            {toastMsg}
-          </motion.div>
-        )}
-      </AnimatePresence>
+            <AlertTriangle size={14} /> File a Complaint
+          </button>
+          <button
+            onClick={handleLogout}
+            className="btn-pill bg-card border border-border-warm text-foreground font-body text-sm font-medium hover:border-red-400 hover:text-red-500 transition-all flex items-center justify-center gap-2"
+          >
+            <LogOut size={14} /> Sign Out
+          </button>
+        </div>
+
+      </div>
     </main>
   );
 }
