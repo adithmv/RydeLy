@@ -1,20 +1,65 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Phone, ShieldCheck, ArrowLeft, Lock, MapPin, Star } from 'lucide-react';
+import {
+  RecaptchaVerifier,
+  signInWithPhoneNumber,
+  ConfirmationResult
+} from 'firebase/auth';
+import { auth } from '@/lib/firebase';
+import { verifyToken } from '@/lib/api';
+
+declare global {
+  interface Window {
+    recaptchaVerifier: RecaptchaVerifier;
+  }
+}
 
 export default function LoginPage() {
   const [step, setStep] = useState<1 | 2>(1);
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [confirmation, setConfirmation] = useState<ConfirmationResult | null>(null);
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
   const navigate = useNavigate();
   const { login, loginAsAdmin } = useApp();
 
-  const handleSendOtp = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (!window.recaptchaVerifier) {
+      window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+        size: 'invisible',
+        callback: () => {},
+      });
+    }
+  }, []);
+
+  const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (phone.length >= 10) setStep(2);
+    if (phone.length < 10) return;
+    setError('');
+    setLoading(true);
+    try {
+      const fullPhone = `+91${phone}`;
+      const appVerifier = window.recaptchaVerifier;
+      const result = await signInWithPhoneNumber(auth, fullPhone, appVerifier);
+      setConfirmation(result);
+      setStep(2);
+    } catch (err: unknown) {
+      const error = err as { code?: string; message?: string };
+      console.error(error);
+      setError('Failed to send OTP. Check your number and try again.');
+      window.recaptchaVerifier.clear();
+      window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+        size: 'invisible',
+        callback: () => {},
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleOtpChange = (index: number, value: string) => {
@@ -30,36 +75,63 @@ export default function LoginPage() {
       otpRefs.current[index - 1]?.focus();
     }
   };
-const handleVerify = (e: React.FormEvent) => {
-  e.preventDefault();
-  if (otp.every(d => d !== '')) {
-    if (phone.endsWith('0000')) {
-      loginAsAdmin();
-      navigate('/admin');
-    } else if (phone.endsWith('1111')) {
-      login(true);
-      navigate('/driver/portal');
-    } else {
-      login(false);
-      navigate('/home');
+
+  const handleVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!otp.every(d => d !== '') || !confirmation) return;
+    setError('');
+    setLoading(true);
+    try {
+      const otpString = otp.join('');
+      const result = await confirmation.confirm(otpString);
+      const idToken = await result.user.getIdToken();
+      const data = await verifyToken(idToken);
+
+      if (data.role === 'admin') {
+        loginAsAdmin();
+        navigate('/admin');
+      } else if (data.role === 'driver') {
+        login(true);
+        navigate('/driver/portal');
+      } else {
+        login(false);
+        navigate('/home');
+      }
+    } catch (err: unknown) {
+      const error = err as { code?: string; message?: string };
+      console.error(error);
+      if (error.code === 'auth/invalid-verification-code') {
+        setError('Invalid OTP. Please check and try again.');
+      } else if (error.message) {
+        setError(error.message);
+      } else {
+        setError('Verification failed. Please try again.');
+      }
+    } finally {
+      setLoading(false);
     }
-  }
-};
+  };
+
+  const handleBack = () => {
+    setStep(1);
+    setOtp(['', '', '', '', '', '']);
+    setError('');
+    setConfirmation(null);
+  };
+
   const isOtpComplete = otp.every(d => d !== '');
   const maskedPhone = phone ? `+91 ${phone.slice(0, 2)}****${phone.slice(-2)}` : '';
 
   return (
     <main className="min-h-screen flex">
 
+      <div id="recaptcha-container" />
+
       {/* LEFT — Branding panel */}
       <div className="hidden md:flex flex-col justify-between w-1/2 bg-foreground text-primary-foreground px-14 py-16">
-        
-        {/* Logo */}
         <div>
           <img src="/src/assets/logo.png" alt="RydeLy" className="h-10 object-contain" />
         </div>
-
-        {/* Center copy */}
         <div>
           <h1 className="font-heading text-4xl font-bold leading-tight">
             Kerala's local<br />
@@ -69,8 +141,6 @@ const handleVerify = (e: React.FormEvent) => {
           <p className="font-malayalam text-primary-foreground/60 text-sm mt-4">
             കേരളത്തിലെ ഓട്ടോ ഡ്രൈവർമാരുടെ<br />ഡയറക്ടറി
           </p>
-
-          {/* Trust badges */}
           <div className="flex flex-col gap-4 mt-10">
             {[
               { icon: <ShieldCheck size={18} className="text-yellow" />, text: 'Admin-verified drivers only' },
@@ -84,8 +154,6 @@ const handleVerify = (e: React.FormEvent) => {
             ))}
           </div>
         </div>
-
-        {/* Bottom note */}
         <p className="font-body text-xs text-primary-foreground/30">
           © 2026 RydeLy. No commission. No app needed.
         </p>
@@ -94,7 +162,6 @@ const handleVerify = (e: React.FormEvent) => {
       {/* RIGHT — Form panel */}
       <div className="flex flex-1 items-center justify-center bg-background px-6 py-20">
         <div className="w-full max-w-[400px]">
-
           <AnimatePresence mode="wait">
             {step === 1 ? (
               <motion.form
@@ -106,7 +173,6 @@ const handleVerify = (e: React.FormEvent) => {
                 onSubmit={handleSendOtp}
                 className="space-y-6"
               >
-                {/* Header */}
                 <div>
                   <div className="inline-flex items-center justify-center w-12 h-12 bg-primary/10 rounded-xl mb-4">
                     <Phone size={22} className="text-primary" />
@@ -120,7 +186,6 @@ const handleVerify = (e: React.FormEvent) => {
                   </p>
                 </div>
 
-                {/* Phone input */}
                 <div>
                   <label className="font-body text-sm font-medium text-foreground block mb-2">
                     Phone Number
@@ -139,12 +204,18 @@ const handleVerify = (e: React.FormEvent) => {
                   </div>
                 </div>
 
+                {error && (
+                  <p className="font-body text-sm text-red-500 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+                    {error}
+                  </p>
+                )}
+
                 <button
                   type="submit"
-                  disabled={phone.length < 10}
+                  disabled={phone.length < 10 || loading}
                   className="w-full btn-pill bg-primary text-primary-foreground font-medium disabled:opacity-40 disabled:cursor-not-allowed shadow-orange-glow hover:bg-[hsl(var(--yellow))] hover:text-foreground transition-all"
                 >
-                  Send OTP
+                  {loading ? 'Sending...' : 'Send OTP'}
                 </button>
 
                 <p className="font-body text-[11px] text-muted-foreground text-center">
@@ -162,7 +233,6 @@ const handleVerify = (e: React.FormEvent) => {
                 onSubmit={handleVerify}
                 className="space-y-6"
               >
-                {/* Header */}
                 <div>
                   <div className="inline-flex items-center justify-center w-12 h-12 bg-primary/10 rounded-xl mb-4">
                     <Lock size={22} className="text-primary" />
@@ -176,7 +246,6 @@ const handleVerify = (e: React.FormEvent) => {
                   </p>
                 </div>
 
-                {/* OTP boxes */}
                 <div className="flex justify-between gap-2">
                   {otp.map((digit, i) => (
                     <input
@@ -193,17 +262,23 @@ const handleVerify = (e: React.FormEvent) => {
                   ))}
                 </div>
 
+                {error && (
+                  <p className="font-body text-sm text-red-500 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+                    {error}
+                  </p>
+                )}
+
                 <button
                   type="submit"
-                  disabled={!isOtpComplete}
+                  disabled={!isOtpComplete || loading}
                   className="w-full btn-pill bg-primary text-primary-foreground font-medium disabled:opacity-40 disabled:cursor-not-allowed shadow-orange-glow hover:bg-[hsl(var(--yellow))] hover:text-foreground transition-all"
                 >
-                  Verify & Login
+                  {loading ? 'Verifying...' : 'Verify & Login'}
                 </button>
 
                 <button
                   type="button"
-                  onClick={() => { setStep(1); setOtp(['', '', '', '', '', '']); }}
+                  onClick={handleBack}
                   className="w-full flex items-center justify-center gap-2 font-body text-sm text-primary hover:text-foreground transition-colors"
                 >
                   <ArrowLeft size={15} />
@@ -212,7 +287,6 @@ const handleVerify = (e: React.FormEvent) => {
               </motion.form>
             )}
           </AnimatePresence>
-
         </div>
       </div>
     </main>

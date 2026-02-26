@@ -1,17 +1,23 @@
 from flask import Flask
+from flask_cors import CORS
 from app.config import config
 from app.extensions import init_firebase, limiter
 
 def create_app(env="development"):
     app = Flask(__name__)
-    
+
     # Load config
     app.config.from_object(config[env])
-    
+
+    # Enable CORS — allow requests from React dev server
+    CORS(app, 
+         origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+         supports_credentials=True)
+
     # Initialize extensions
     init_firebase(app)
     limiter.init_app(app)
-    
+
     # Register blueprints
     from app.auth import auth_bp
     from app.commuter import commuter_bp
