@@ -2,7 +2,7 @@ from flask import request, jsonify
 from app.admin import admin_bp
 from app.middleware.auth_guard import admin_required
 from app.services.firebase_service import (
-    get_all_drivers, update_driver, get_all_stands,
+    get_all_drivers, get_all_drivers_admin, update_driver, get_all_stands,
     create_stand, get_driver
 )
 from firebase_admin import db
@@ -10,7 +10,7 @@ from firebase_admin import db
 @admin_bp.route("/drivers", methods=["GET"])
 @admin_required
 def list_drivers():
-    drivers = get_all_drivers()
+    drivers = get_all_drivers_admin()
     return jsonify(drivers), 200
 
 @admin_bp.route("/driver/<driver_id>/verify", methods=["PATCH"])
@@ -108,3 +108,20 @@ def resolve_report_endpoint(report_id):
 from app.services.firebase_service import (
     get_announcements, add_announcement, delete_announcement
 )
+
+from app.services.firebase_service import get_announcements, add_announcement, delete_announcement
+
+@admin_bp.route("/announcement", methods=["POST"])
+@admin_required
+def post_announcement():
+    data = request.get_json()
+    if not data or not data.get("message", "").strip():
+        return jsonify({"error": "message is required"}), 400
+    result = add_announcement(data["message"].strip())
+    return jsonify({"message": "Announcement posted.", "id": result["id"]}), 201
+
+@admin_bp.route("/announcements", methods=["GET"])
+@admin_required
+def list_announcements():
+    announcements = get_announcements()
+    return jsonify(announcements), 200

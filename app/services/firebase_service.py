@@ -168,3 +168,83 @@ def delete_announcement(announcement_id):
     """Delete an announcement by ID."""
     ref = db.reference(f"/announcements/{announcement_id}")
     ref.delete()
+def get_driver_profile(driver_id):
+    """Returns a shaped driver profile for the portal page."""
+    driver = db.reference(f"/drivers/{driver_id}").get()
+    if not driver:
+        return None
+
+    # Look up stand name from standId
+    stand_name = driver.get("standId", "")
+    stand_ref = db.reference(f"/stands/{driver.get('standId')}").get()
+    if stand_ref:
+        stand_name = stand_ref.get("name", driver.get("standId", ""))
+
+    # Count calls this week
+    from datetime import datetime, timedelta
+    one_week_ago = (datetime.utcnow() - timedelta(days=7)).isoformat()
+    logs_ref = db.reference("/callLogs").get() or {}
+    calls_this_week = sum(
+        1 for log in logs_ref.values()
+        if log.get("driverId") == driver_id and log.get("timestamp", "") >= one_week_ago
+    )
+
+    # Derive status
+    if driver.get("isBanned"):
+        status = "banned"
+    elif driver.get("isVerified"):
+        status = "verified"
+    else:
+        status = "pending"
+
+    return {
+        "id": driver_id,
+        "name": driver.get("name", ""),
+        "phone": driver.get("phone", ""),
+        "stand": stand_name,
+        "town": driver.get("town", ""),
+        "autoNumber": driver.get("autoNumber", "N/A"),
+        "isAvailable": driver.get("isAvailable", False),
+        "warningCount": driver.get("warningCount", 0),
+        "callsThisWeek": calls_this_week,
+        "status": status,
+    }
+
+def get_all_drivers_admin():
+    """Returns all drivers with derived status field for admin dashboard."""
+    ref = db.reference("/drivers")
+    drivers = ref.get()
+    if not drivers:
+        return []
+
+    result = []
+    stands_ref = db.reference("/stands").get() or {}
+
+    for driver_id, driver in drivers.items():
+        # Derive status
+        if driver.get("isBanned"):
+            status = "banned"
+        elif driver.get("isVerified"):
+            status = "verified"
+        else:
+            status = "pending"
+
+        # Resolve stand name
+        stand_name = ""
+        stand_data = stands_ref.get(driver.get("standId", ""))
+        if stand_data:
+            stand_name = stand_data.get("name", "")
+
+        result.append({
+            "id": driver_id,
+            "name": driver.get("name", ""),
+            "phone": driver.get("phone", ""),
+            "town": driver.get("town", ""),
+            "stand": stand_name,
+            "autoNumber": driver.get("autoNumber", "N/A"),
+            "status": status,
+            "warningCount": driver.get("warningCount", 0),
+            "isAvailable": driver.get("isAvailable", False),
+        })
+
+    return result

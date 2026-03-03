@@ -3,4 +3,4 @@ flask
 flask-limiter
 firebase-admin
 python-dotenv
-cryptography
+cryptographyflask-cors==6.0.2
