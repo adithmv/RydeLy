@@ -58,7 +58,7 @@ export interface CallLog {
 
 export async function getDrivers(town: string, stand: string) {
   return request<Driver[]>(
-    `/commuter/drivers?town=${encodeURIComponent(town)}&stand=${encodeURIComponent(stand)}`
+    `/commuter/drivers?standId=${encodeURIComponent(stand)}&town=${encodeURIComponent(town)}`
   );
 }
 
@@ -189,3 +189,7 @@ export async function adminResolveReport(reportId: string) {
     method: "PATCH",
   });
 }
+
+
+export const getAnnouncements = () =>
+  request<{ message: string }[]>('/commuter/announcements');

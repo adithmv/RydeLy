@@ -1,7 +1,8 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Shield, ShieldCheck, Lock, CheckCircle, Phone, MapPin, LogIn, ClipboardList, KeyRound, TriangleAlert } from 'lucide-react';
+import { Shield, ShieldCheck, Lock, CheckCircle, Phone, MapPin, LogIn, ClipboardList, KeyRound, TriangleAlert, Megaphone } from 'lucide-react';
+import { getAnnouncements } from '@/lib/api';
 
 function PhoneMockup() {
   return (
@@ -107,7 +108,6 @@ function SafetySection() {
     { icon: <KeyRound size={28} className="text-yellow" />, title: 'OTP Authentication', desc: 'Phone-based OTP login ensures only real users access the platform.' },
     { icon: <TriangleAlert size={28} className="text-yellow" />, title: 'Report System', desc: 'Report any driver after a call. Three strikes and the driver is banned.' },
   ];
-
   return (
     <section id="safety" className="py-16 md:py-24 bg-foreground text-primary-foreground">
       <div className="max-w-[1100px] mx-auto px-5">
@@ -116,7 +116,6 @@ function SafetySection() {
           <h2 className="font-heading text-3xl md:text-4xl font-bold mt-2 text-primary-foreground">Your safety, our priority</h2>
           <p className="font-malayalam text-sm text-primary-foreground/60 mt-2">നിങ്ങളുടെ സുരക്ഷ, ഞങ്ങളുടെ മുൻഗണന</p>
         </div>
-
         <div className="flex gap-5 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
           {cards.map((card, i) => (
             <motion.div
@@ -177,7 +176,7 @@ function ForDriversSection() {
           </ul>
           <button
             onClick={() => navigate('/register')}
-            className="btn-pill bg-primary hover:bg-[hsl(var(--yellow))] hover:text-foreground transition-all shadow-orange-glow"
+            className="btn-pill bg-primary hover:bg-[hsl(var(--yellow))] hover:text-foreground transition-all shadow-orange-glow mt-8"
           >
             Register as Driver
           </button>
@@ -211,6 +210,15 @@ function CTASection() {
 export default function LandingPage() {
   const navigate = useNavigate();
   const heroRef = useRef<HTMLDivElement>(null);
+  const [announcements, setAnnouncements] = useState<string[]>([]);
+
+  useEffect(() => {
+    getAnnouncements()
+      .then((data: { message: string }[]) => {
+        setAnnouncements(data.map((a) => a.message));
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -226,7 +234,31 @@ export default function LandingPage() {
 
   return (
     <main>
-      <section ref={heroRef} className="relative min-h-[calc(100vh-72px)] flex items-center overflow-hidden mt-[60px] md:mt-[72px]">
+
+      {/* Announcements Banner */}
+      {announcements.length > 0 && (
+        <div className="bg-primary text-primary-foreground py-2 px-4 overflow-hidden mt-[60px] md:mt-[72px]">
+          <div className="flex items-center gap-3 max-w-[1100px] mx-auto">
+            <span className="shrink-0 flex items-center gap-1.5 bg-primary-foreground/20 px-2.5 py-1 rounded-full font-body text-xs font-semibold">
+              <Megaphone size={11} /> Notice
+            </span>
+            <div className="overflow-hidden flex-1">
+              <div className="flex animate-marquee whitespace-nowrap">
+  {[...Array(6)].map((_, i) => (
+    <span key={i} className="font-body text-xs mx-8 shrink-0">
+      {announcements.join('   •   ')}
+    </span>
+  ))}
+</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <section
+        ref={heroRef}
+        className={`relative min-h-[calc(100vh-72px)] flex items-center overflow-hidden ${announcements.length > 0 ? '' : 'mt-[60px] md:mt-[72px]'}`}
+      >
         <div className="parallax-blob absolute top-10 left-10 w-72 h-72 bg-primary/10 rounded-full blur-3xl" />
         <div className="parallax-blob absolute bottom-20 right-20 w-96 h-96 bg-yellow/10 rounded-full blur-3xl" />
         <div className="parallax-ring absolute top-32 right-40 w-40 h-40 border-2 border-primary/10 rounded-full" />

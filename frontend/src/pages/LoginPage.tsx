@@ -1,21 +1,9 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Phone, ShieldCheck, ArrowLeft, Lock, MapPin, Star } from 'lucide-react';
-import {
-  RecaptchaVerifier,
-  signInWithPhoneNumber,
-  ConfirmationResult
-} from 'firebase/auth';
-import { auth } from '@/lib/firebase';
 import { verifyToken } from '@/lib/api';
-
-declare global {
-  interface Window {
-    recaptchaVerifier: RecaptchaVerifier;
-  }
-}
 
 export default function LoginPage() {
   const [step, setStep] = useState<1 | 2>(1);
@@ -23,43 +11,18 @@ export default function LoginPage() {
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [confirmation, setConfirmation] = useState<ConfirmationResult | null>(null);
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
   const navigate = useNavigate();
   const { login, loginAsAdmin } = useApp();
-
-  useEffect(() => {
-    if (!window.recaptchaVerifier) {
-      window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-        size: 'invisible',
-        callback: () => {},
-      });
-    }
-  }, []);
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (phone.length < 10) return;
     setError('');
     setLoading(true);
-    try {
-      const fullPhone = `+91${phone}`;
-      const appVerifier = window.recaptchaVerifier;
-      const result = await signInWithPhoneNumber(auth, fullPhone, appVerifier);
-      setConfirmation(result);
-      setStep(2);
-    } catch (err: unknown) {
-      const error = err as { code?: string; message?: string };
-      console.error(error);
-      setError('Failed to send OTP. Check your number and try again.');
-      window.recaptchaVerifier.clear();
-      window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-        size: 'invisible',
-        callback: () => {},
-      });
-    } finally {
-      setLoading(false);
-    }
+    await new Promise(r => setTimeout(r, 800)); // fake delay
+    setStep(2);
+    setLoading(false);
   };
 
   const handleOtpChange = (index: number, value: string) => {
@@ -78,15 +41,16 @@ export default function LoginPage() {
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!otp.every(d => d !== '') || !confirmation) return;
+    const otpString = otp.join('');
+    if (otpString.length !== 6) return;
+    if (otpString !== '123456') {
+      setError('Invalid OTP. Use 123456 for testing.');
+      return;
+    }
     setError('');
     setLoading(true);
     try {
-      const otpString = otp.join('');
-      const result = await confirmation.confirm(otpString);
-      const idToken = await result.user.getIdToken();
-      const data = await verifyToken(idToken);
-
+      const data = await verifyToken('test-token-' + phone);
       if (data.role === 'admin') {
         loginAsAdmin();
         navigate('/admin');
@@ -97,16 +61,8 @@ export default function LoginPage() {
         login(false);
         navigate('/home');
       }
-    } catch (err: unknown) {
-      const error = err as { code?: string; message?: string };
-      console.error(error);
-      if (error.code === 'auth/invalid-verification-code') {
-        setError('Invalid OTP. Please check and try again.');
-      } else if (error.message) {
-        setError(error.message);
-      } else {
-        setError('Verification failed. Please try again.');
-      }
+    } catch {
+      setError('Login failed. Is the backend running?');
     } finally {
       setLoading(false);
     }
@@ -116,7 +72,6 @@ export default function LoginPage() {
     setStep(1);
     setOtp(['', '', '', '', '', '']);
     setError('');
-    setConfirmation(null);
   };
 
   const isOtpComplete = otp.every(d => d !== '');
@@ -124,8 +79,6 @@ export default function LoginPage() {
 
   return (
     <main className="min-h-screen flex">
-
-      <div id="recaptcha-container" />
 
       {/* LEFT — Branding panel */}
       <div className="hidden md:flex flex-col justify-between w-1/2 bg-foreground text-primary-foreground px-14 py-16">
@@ -219,7 +172,7 @@ export default function LoginPage() {
                 </button>
 
                 <p className="font-body text-[11px] text-muted-foreground text-center">
-                  A 6-digit code will be sent to your number via SMS
+                  Use OTP <strong>123456</strong> for testing
                 </p>
               </motion.form>
 
