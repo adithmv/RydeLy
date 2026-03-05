@@ -3,47 +3,30 @@ import { useNavigate } from "react-router-dom";
 import { registerDriver } from "@/lib/api";
 import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle, ChevronDown, Loader2, Car } from "lucide-react";
+import TownSearchSelect from "@/components/TownSearchSelect";
+import { ALL_TOWNS, getStandsByTown } from "@/data/index";
 
-const BASE = "http://127.0.0.1:5000";
-
-interface Stand {
-  id: string;
-  name: string;
-  town: string;
-}
 
 export default function DriverRegistrationPage() {
+
   const navigate = useNavigate();
 
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [town, setTown] = useState("");
   const [standId, setStandId] = useState("");
+  const towns = ALL_TOWNS;
+  const filteredStands = getStandsByTown(town);
 
-  const [towns, setTowns] = useState<string[]>([]);
-  const [stands, setStands] = useState<Stand[]>([]);
   const [loadingStands] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
 
-  // ── Fetch towns on mount ──────────────────────────────────
-  useEffect(() => {
-    fetch(`${BASE}/commuter/stands`, { credentials: "include" })
-      .then(r => r.json())
-      .then((data: Stand[]) => {
-        const uniqueTowns = [...new Set(data.map(s => s.town))].sort();
-        setTowns(uniqueTowns);
-        setStands(data);
-      })
-      .catch(() => {
-        // fallback — leave towns empty, show error on submit
-      });
-  }, []);
 
-  // ── Filter stands when town changes ──────────────────────
-  const filteredStands = stands.filter(s => s.town === town);
+
+
 
   useEffect(() => {
     setStandId("");
@@ -178,23 +161,14 @@ export default function DriverRegistrationPage() {
 
                   {/* Town */}
                   <div>
-                    <label className="font-body text-sm font-medium text-foreground block mb-2">
-                      Town
-                    </label>
-                    <div className="relative">
-                      <select
-                        value={town}
-                        onChange={e => setTown(e.target.value)}
-                        className="w-full appearance-none px-4 py-3 bg-cream-dark border-2 border-border-warm rounded-xl font-body text-sm focus:border-primary outline-none transition-colors pr-10"
-                      >
-                        <option value="">Select your town</option>
-                        {towns.map(t => (
-                          <option key={t} value={t}>{t}</option>
-                        ))}
-                      </select>
-                      <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                    </div>
-                  </div>
+  <label className="font-body text-sm font-medium text-foreground block mb-2">Town</label>
+  <TownSearchSelect
+    towns={towns}
+    value={town}
+    onChange={(t) => setTown(t)}
+    placeholder="Search your town..."
+  />
+</div>
 
                   {/* Stand */}
                   <div>

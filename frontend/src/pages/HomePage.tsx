@@ -1,37 +1,27 @@
-import { useState, useEffect } from "react";
+import { ALL_TOWNS, getStandsByTown } from "@/data/index";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "@/context/AppContext";
 import { motion } from "framer-motion";
-import { MapPin, Navigation, Search, ChevronDown, Clock, ShieldCheck, Phone } from "lucide-react";
+import {  Navigation, Search, ChevronDown, Clock, ShieldCheck, Phone } from "lucide-react";
+import TownSearchSelect from "@/components/TownSearchSelect";
 
-const BASE = "http://127.0.0.1:5000";
-
-interface Stand {
-  id: string;
-  name: string;
-  town: string;
-}
 
 export default function HomePage() {
   const navigate = useNavigate();
   const { selectedTown, selectedStand, setSelectedTown, setSelectedStand } = useApp();
 
-  const [stands, setStands] = useState<Stand[]>([]);
+
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
   const greetingMalayalam = hour < 12 ? "സുപ്രഭാതം" : hour < 17 ? "ശുഭ ഉച്ചയ്ക്ക്" : "ശുഭ സന്ധ്യ";
 
   // ── Fetch stands on mount ─────────────────────────────
-  useEffect(() => {
-    fetch(`${BASE}/commuter/stands`, { credentials: "include" })
-      .then(r => r.json())
-      .then((data: Stand[]) => setStands(data))
-      .catch(() => {}); // silent fail — dropdowns just stay empty
-  }, []);
 
-  const towns = [...new Set(stands.map(s => s.town))].sort();
-  const filteredStands = stands.filter(s => s.town === selectedTown);
+
+const towns = ALL_TOWNS;
+
+const filteredStands = getStandsByTown(selectedTown);
 
   const handleTownChange = (town: string) => {
     setSelectedTown(town);
@@ -97,20 +87,14 @@ export default function HomePage() {
 
             {/* Town */}
             <div>
-              <label className="font-body text-sm font-medium text-foreground block mb-2">Town</label>
-              <div className="relative">
-                <MapPin size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                <select
-                  value={selectedTown}
-                  onChange={e => handleTownChange(e.target.value)}
-                  className="w-full pl-10 pr-10 py-3 bg-cream-dark border-2 border-border-warm rounded-xl font-body text-sm focus:border-primary outline-none transition-colors appearance-none cursor-pointer"
-                >
-                  <option value="">Select Town</option>
-                  {towns.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
-                <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-              </div>
-            </div>
+  <label className="font-body text-sm font-medium text-foreground block mb-2">Town</label>
+  <TownSearchSelect
+    towns={towns}
+    value={selectedTown}
+    onChange={handleTownChange}
+    placeholder="Search town..."
+  />
+</div>
 
             {/* Stand */}
             <div>
