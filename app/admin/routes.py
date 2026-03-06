@@ -6,7 +6,7 @@ from app.services.firebase_service import (
     create_stand, get_driver
 )
 from firebase_admin import db
-
+from app.services.call_service import get_all_call_logs
 @admin_bp.route("/drivers", methods=["GET"])
 @admin_required
 def list_drivers():
@@ -77,7 +77,7 @@ def list_users():
         return jsonify([]), 200
     return jsonify([{"id": k, **v} for k, v in users.items()]), 200
 
-    from app.services.call_service import get_all_call_logs
+    s
 
 @admin_bp.route("/logs", methods=["GET"])
 @admin_required

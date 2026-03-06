@@ -150,19 +150,16 @@ def get_driver_by_phone(phone):
     return None
 
 def get_announcements():
-    """Get all announcement messages."""
-    ref = db.reference("/announcements")
-    data = ref.get()
-    if not data:
+    """Get the current active announcement."""
+    data = db.reference("/announcement").get()
+    if not data or not data.get("message"):
         return []
-    if isinstance(data, list):
-        return [a for a in data if a]
-    return [v for v in data.values() if v]
+    return [{"message": data["message"]}]
 
 def add_announcement(message):
-    """Add a new announcement."""
-    ref = db.reference("/announcements")
-    ref.push({"message": message})
+    """Store a single active announcement, replacing any previous one."""
+    db.reference("/announcement").set({"message": message, "timestamp": __import__('datetime').datetime.utcnow().isoformat()})
+    return {"id": "active", "message": message}
 
 def delete_announcement(announcement_id):
     """Delete an announcement by ID."""
