@@ -13,7 +13,7 @@ function PhoneMockup() {
       <div className="p-4 space-y-3">
         <div className="flex items-center gap-2 mb-1">
           <div className="w-6 h-6 bg-primary rounded-md" />
-          <span><img src="/src/assets/logo.png" alt="RydeLy" className="h-9 w-9 object-contain" /></span>
+          <span><img src="/logo.png" alt="RydeLy" className="h-9 w-9 object-contain" /></span>
         </div>
         <div className="flex gap-2">
           <span className="text-[10px] bg-cream-dark px-2 py-1 rounded-pill font-body flex items-center gap-1">

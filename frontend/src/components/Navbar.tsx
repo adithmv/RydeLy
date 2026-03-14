@@ -35,7 +35,7 @@ export default function Navbar() {
 
           <Link to="/" className="flex items-center gap-2">
   <img 
-    src="/src/assets/logo.png" 
+    src="/logo.png" 
     alt="RydeLy" 
     className="h-11 w- object-contain"
   />

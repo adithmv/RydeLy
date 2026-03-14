@@ -5,7 +5,7 @@ export default function Footer() {
     <footer className="border-t border-[#E8DDD0] py-8 bg-white">
       <div className="max-w-[1100px] mx-auto px-5 flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-2">
-          <img src="/src/assets/logo.png" alt="RydeLy" className="h-8 w-8 object-contain" />
+          <img src="/logo.png" alt="RydeLy" className="h-8 w-8 object-contain" />
           <p className="font-malayalam text-xs text-gray-400">കേരളത്തിലെ ഓട്ടോ ഡയറക്ടറി</p>
         </div>
         <div className="flex items-center gap-6">
