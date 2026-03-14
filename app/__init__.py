@@ -24,10 +24,11 @@ def create_app(env=None):
         allowed_origins.append(cloudflare_url)
 
     CORS(app,
-         origins=allowed_origins,
-         supports_credentials=True,
-         allow_headers=["Content-Type"],
-         methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"])
+     origins=allowed_origins,
+     supports_credentials=True,
+     allow_headers=["Content-Type", "Authorization"],
+     methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+     automatic_options=True)
 
     # Initialize extensions
     init_firebase(app)
