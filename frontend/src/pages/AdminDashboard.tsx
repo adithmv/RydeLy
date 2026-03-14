@@ -77,7 +77,7 @@ export default function AdminDashboard() {
   const [announceSending, setAnnounceSending] = useState(false);
   const [announceSuccess, setAnnounceSuccess] = useState(false);
 
-  const BASE = "http://127.0.0.1:5000";
+  const BASE = import.meta.env.VITE_API_URL || "http://127.0.0.1:5000";
 
   // ── Fetch all data ──────────────────────────────────────
   const fetchAll = useCallback(async () => {

@@ -45,7 +45,7 @@ export default function LoginPage() {
     // Admin check — hardcoded phone list
 if (ADMIN_PHONES.includes(phone)) {
   try {
-    await fetch('http://127.0.0.1:5000/auth/mock-login', {
+    await fetch('`${import.meta.env.VITE_API_URL || "http://127.0.0.1:5000"}/auth/mock-login`', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
@@ -59,7 +59,7 @@ if (ADMIN_PHONES.includes(phone)) {
 
     // For everyone else — ask backend if they're a registered driver
     try {
-      const res = await fetch('http://127.0.0.1:5000/auth/mock-login', {
+      const res = await fetch('`${import.meta.env.VITE_API_URL || "http://127.0.0.1:5000"}/auth/mock-login`', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
