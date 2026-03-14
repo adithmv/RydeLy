@@ -6,7 +6,7 @@ import { useApp } from '@/context/AppContext';
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const { isLoggedIn, isAdmin, isDriver, name, logout } = useApp();
+  const { isLoggedIn, isAdmin, isDriver, logout } = useApp();
   const navigate  = useNavigate();
   const location  = useLocation();
   const isLanding = location.pathname === '/';
@@ -65,7 +65,7 @@ export default function Navbar() {
             )}
             {isLoggedIn ? (
               <div className="flex items-center gap-3">
-                {name && <span className="font-body text-sm text-muted">Hi, {name.split(' ')[0]}</span>}
+        
                 <button onClick={handleLogout} className="btn-pill bg-[#0F0E0C] text-[#FDFAF4] text-sm">Logout</button>
               </div>
             ) : (
