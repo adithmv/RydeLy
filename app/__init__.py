@@ -19,9 +19,11 @@ def create_app(env=None):
         "http://localhost:5173",
         "http://127.0.0.1:5173",
     ]
-    cloudflare_url = os.getenv("FRONTEND_URL")
-    if cloudflare_url:
-        allowed_origins.append(cloudflare_url)
+    frontend_urls = os.getenv("FRONTEND_URL", "")
+for url in frontend_urls.split(","):
+    url = url.strip()
+    if url:
+        allowed_origins.append(url)
 
     CORS(app,
      origins=allowed_origins,
