@@ -32,7 +32,7 @@ function CallModal({
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
         transition={{ duration: 0.2 }}
-        className="bg-card rounded-card p-8 max-w-[400px] w-full shadow-modal"
+        className="bg-foreground rounded-card p-8 max-w-[400px] w-full shadow-modal"
         onClick={e => e.stopPropagation()}
       >
         <div className="text-center space-y-4">
@@ -40,10 +40,10 @@ function CallModal({
             <Phone size={26} className="text-primary" />
           </div>
           <div>
-            <h2 className="font-heading text-xl font-bold">Call {driverName}?</h2>
+            <h2 className="font-heading text-xl font-bold text-primary-foreground">Call {driverName}?</h2>
             <p className="font-malayalam text-xs text-muted-foreground mt-1">{driverName} നെ വിളിക്കണോ?</p>
           </div>
-          <p className="font-body text-sm text-muted-foreground">
+          <p className="font-body text-sm text-primary-foreground/70">
             This call will be logged for your safety.
           </p>
           <p className="font-malayalam text-xs text-muted-foreground">
