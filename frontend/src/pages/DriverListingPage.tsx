@@ -166,6 +166,7 @@ export default function DriverListingPage() {
 
   const town = searchParams.get("town") || "";
   const stand = searchParams.get("stand") || "";
+  const standName = searchParams.get("standName") || stand;
   const remaining = 5 - callCount;
 
   // ── Fetch drivers from backend ──────────────────────────────
@@ -217,7 +218,7 @@ export default function DriverListingPage() {
         {/* Header */}
         <div className="flex items-start justify-between mb-2">
           <div>
-            <h1 className="font-heading text-2xl font-bold">{stand}</h1>
+            <h1 className="font-heading text-2xl font-bold">{standName}</h1>
             <p className="font-body text-sm text-muted-foreground mt-0.5">{town}</p>
           </div>
           {!loadingDrivers && (

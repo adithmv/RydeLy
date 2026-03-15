@@ -30,7 +30,8 @@ const filteredStands = getStandsByTown(selectedTown);
 
   const handleFind = () => {
     if (selectedTown && selectedStand) {
-      navigate(`/drivers?town=${encodeURIComponent(selectedTown)}&stand=${encodeURIComponent(selectedStand)}`);
+      const standName = filteredStands.find(s => s.id === selectedStand)?.name || selectedStand;
+navigate(`/drivers?town=${encodeURIComponent(selectedTown)}&stand=${encodeURIComponent(selectedStand)}&standName=${encodeURIComponent(standName)}`);
     }
   };
 
@@ -110,7 +111,7 @@ const filteredStands = getStandsByTown(selectedTown);
                   <option value="">
                     {!selectedTown ? "Select a town first" : filteredStands.length === 0 ? "No stands found" : "Select Auto Stand"}
                   </option>
-                  {filteredStands.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                  {filteredStands.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
                 <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
               </div>
@@ -145,9 +146,9 @@ const filteredStands = getStandsByTown(selectedTown);
               {filteredStands.map(s => (
                 <button
                   key={s.id}
-                  onClick={() => setSelectedStand(s.name)}
+                  onClick={() => setSelectedStand(s.id)}
                   className={`font-body text-xs px-3 py-1.5 rounded-full border transition-all ${
-                    selectedStand === s.name
+                    selectedStand === s.id
                       ? "bg-primary text-primary-foreground border-primary shadow-orange-glow"
                       : "bg-card border-border-warm text-muted-foreground hover:border-primary hover:text-primary"
                   }`}
