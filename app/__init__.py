@@ -11,32 +11,30 @@ def create_app(env=None):
 
     app = Flask(__name__)
 
-    # Load config
     app.config.from_object(config[env])
 
-    # CORS — allow both local dev and production Cloudflare domain
     allowed_origins = [
         "http://localhost:5173",
         "http://127.0.0.1:5173",
     ]
+
+    # Support multiple frontend URLs (comma-separated)
     frontend_urls = os.getenv("FRONTEND_URL", "")
-for url in frontend_urls.split(","):
-    url = url.strip()
-    if url:
-        allowed_origins.append(url)
+    for url in frontend_urls.split(","):
+        url = url.strip()
+        if url:
+            allowed_origins.append(url)
 
     CORS(app,
-     origins=allowed_origins,
-     supports_credentials=True,
-     allow_headers=["Content-Type", "Authorization"],
-     methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-     automatic_options=True)
+         origins=allowed_origins,
+         supports_credentials=True,
+         allow_headers=["Content-Type", "Authorization"],
+         methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+         automatic_options=True)
 
-    # Initialize extensions
     init_firebase(app)
     limiter.init_app(app)
 
-    # Register blueprints
     from app.auth import auth_bp
     from app.commuter import commuter_bp
     from app.driver import driver_bp
@@ -49,4 +47,4 @@ for url in frontend_urls.split(","):
     app.register_blueprint(admin_bp, url_prefix="/admin")
     app.register_blueprint(ivr_bp, url_prefix="/ivr")
 
-    return app
+    return app  
