@@ -110,7 +110,6 @@ def logout():
     return jsonify({"message": "Logged out"}), 200
 
 @auth_bp.route("/mock-login", methods=["POST"])
-
 def mock_login():
     data = request.get_json()
     phone = data.get("phone", "")
