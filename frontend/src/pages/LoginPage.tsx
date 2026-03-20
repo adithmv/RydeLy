@@ -1,85 +1,160 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Phone, ArrowLeft, Lock, ShieldCheck, Star, MapPin } from 'lucide-react';
+import { Phone, ArrowLeft, Lock, ShieldCheck, Star, MapPin, User } from 'lucide-react';
+import {
+  signInWithPhoneNumber,
+  RecaptchaVerifier,
+  ConfirmationResult,
+} from 'firebase/auth';
+import { auth } from '@/lib/firebase';
 
-const ADMIN_PHONES = ['9518289625']; // 👈 your phone number — add more if needed
+const BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
 
 export default function LoginPage() {
-  const [step, setStep] = useState<1 | 2>(1);
+  const [step, setStep] = useState<1 | 2 | 3>(1); // 1=phone, 2=otp, 3=name
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
+  const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
 
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const recaptchaContainerRef = useRef<HTMLDivElement>(null);
+  const recaptchaVerifierRef = useRef<RecaptchaVerifier | null>(null);
+
   const navigate = useNavigate();
   const { login, loginAsAdmin } = useApp();
 
-  // ── Step 1: Send OTP (mock) ────────────────────────────────
+  // ── Clean up reCAPTCHA on unmount ─────────────────────────
+  useEffect(() => {
+    return () => {
+      if (recaptchaVerifierRef.current) {
+        recaptchaVerifierRef.current.clear();
+        recaptchaVerifierRef.current = null;
+      }
+    };
+  }, []);
+
+  // ── Step 1: Send OTP via Firebase ─────────────────────────
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (phone.length < 10) return;
     setError('');
     setLoading(true);
-    await new Promise(r => setTimeout(r, 600));
-    setStep(2);
-    setLoading(false);
+
+    try {
+      if (!recaptchaVerifierRef.current) {
+        recaptchaVerifierRef.current = new RecaptchaVerifier(
+          auth,
+          recaptchaContainerRef.current!,
+          { size: 'invisible' }
+        );
+      }
+
+      const result = await signInWithPhoneNumber(
+        auth,
+        '+91' + phone,
+        recaptchaVerifierRef.current
+      );
+      setConfirmationResult(result);
+      setStep(2);
+    } catch (err: unknown) {
+      if (recaptchaVerifierRef.current) {
+        recaptchaVerifierRef.current.clear();
+        recaptchaVerifierRef.current = null;
+      }
+      const msg = err instanceof Error ? err.message : '';
+      if (msg.includes('invalid-phone-number')) {
+        setError('Invalid phone number. Please check and try again.');
+      } else if (msg.includes('too-many-requests')) {
+        setError('Too many attempts. Please wait a few minutes and try again.');
+      } else if (msg.includes('quota-exceeded')) {
+        setError('SMS quota exceeded. Please try again later.');
+      } else {
+        setError('Failed to send OTP. Please try again.');
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // ── Step 2: Verify OTP ─────────────────────────────────────
+  // ── Step 2: Verify OTP → get idToken → POST to backend ────
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     const otpString = otp.join('');
-    if (otpString.length !== 6) return;
-
-    if (otpString !== '123456') {
-      setError('Incorrect OTP. Use 123456 for now.');
-      return;
-    }
+    if (otpString.length !== 6 || !confirmationResult) return;
 
     setError('');
     setLoading(true);
 
-    // Admin check — hardcoded phone list
-if (ADMIN_PHONES.includes(phone)) {
-  try {
-    await fetch(`${import.meta.env.VITE_API_URL || "http://127.0.0.1:5000"}/auth/mock-login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ phone: '+91' + phone, role: 'admin' }),
-    });
-  } catch { /* backend down */ }
-  loginAsAdmin();
-  navigate('/admin');
-  return;
-}
-
-    // For everyone else — ask backend if they're a registered driver
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || "http://127.0.0.1:5000"}/auth/mock-login`, {
+      const userCredential = await confirmationResult.confirm(otpString);
+      const idToken = await userCredential.user.getIdToken();
+
+      const res = await fetch(`${BASE}/auth/verify-token`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ phone: '+91' + phone }),
+        body: JSON.stringify({ idToken }),
       });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || `Server error ${res.status}`);
+      }
+
       const data = await res.json();
-      if (data.role === 'driver') {
+
+      if (data.role === 'admin') {
+        loginAsAdmin();
+        navigate('/admin');
+      } else if (data.role === 'driver') {
         login(true);
         navigate('/driver/portal');
       } else {
         login(false);
-        navigate('/home');
+        if (data.isFirstLogin) {
+          setStep(3);
+        } else {
+          navigate('/home');
+        }
       }
-    } catch {
-      // Backend unreachable — default to commuter
-      login(false);
-      navigate('/home');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : '';
+      if (msg.includes('invalid-verification-code') || msg.includes('code-expired')) {
+        setError('Incorrect or expired OTP. Please try again.');
+      } else {
+        setError(msg || 'Verification failed. Please try again.');
+      }
+    } finally {
+      setLoading(false);
     }
+  };
 
-    setLoading(false);
+  // ── Step 3: Save commuter name ─────────────────────────────
+  const handleSaveName = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (name.trim().length < 2) return;
+    setError('');
+    setLoading(true);
+
+    try {
+      const res = await fetch(`${BASE}/auth/set-name`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ name: name.trim() }),
+      });
+      if (!res.ok) throw new Error('Failed to save name');
+      navigate('/home');
+    } catch {
+      navigate('/home'); // Non-critical — let them through
+    } finally {
+      setLoading(false);
+    }
   };
 
   // ── OTP input handlers ─────────────────────────────────────
@@ -105,8 +180,22 @@ if (ADMIN_PHONES.includes(phone)) {
     }
   };
 
+  const resetToStep1 = () => {
+    setStep(1);
+    setOtp(['', '', '', '', '', '']);
+    setError('');
+    setConfirmationResult(null);
+    if (recaptchaVerifierRef.current) {
+      recaptchaVerifierRef.current.clear();
+      recaptchaVerifierRef.current = null;
+    }
+  };
+
   return (
     <main className="min-h-screen bg-background flex">
+
+      {/* Invisible reCAPTCHA mount point */}
+      <div ref={recaptchaContainerRef} />
 
       {/* Left branding panel */}
       <div className="hidden lg:flex flex-col justify-between w-[420px] flex-shrink-0 bg-foreground text-primary-foreground p-12">
@@ -186,13 +275,6 @@ if (ADMIN_PHONES.includes(phone)) {
                     </div>
                   </div>
 
-                  {/* Dev mode notice */}
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-3">
-                    <p className="font-body text-xs text-yellow-800">
-                      🔧 Dev mode — use any number, OTP is <strong>123456</strong>
-                    </p>
-                  </div>
-
                   {error && (
                     <p className="font-body text-sm text-red-500 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
                       {error}
@@ -205,7 +287,7 @@ if (ADMIN_PHONES.includes(phone)) {
                     className="w-full btn-pill bg-primary text-primary-foreground font-medium disabled:opacity-40 disabled:cursor-not-allowed shadow-orange-glow hover:bg-[hsl(var(--yellow))] hover:text-foreground transition-all flex items-center justify-center gap-2"
                   >
                     {loading
-                      ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Sending...</>
+                      ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Sending OTP...</>
                       : 'Send OTP'}
                   </button>
 
@@ -229,7 +311,7 @@ if (ADMIN_PHONES.includes(phone)) {
                 transition={{ duration: 0.3 }}
               >
                 <button
-                  onClick={() => { setStep(1); setOtp(['','','','','','']); setError(''); }}
+                  onClick={resetToStep1}
                   className="flex items-center gap-2 font-body text-sm text-muted-foreground hover:text-primary transition-colors mb-8"
                 >
                   <ArrowLeft size={16} /> Change number
@@ -286,10 +368,76 @@ if (ADMIN_PHONES.includes(phone)) {
                     Didn't receive it?{' '}
                     <button
                       type="button"
-                      onClick={() => { setStep(1); setOtp(['','','','','','']); setError(''); }}
+                      onClick={resetToStep1}
                       className="text-primary hover:underline"
                     >
                       Try again
+                    </button>
+                  </p>
+                </form>
+              </motion.div>
+            )}
+
+            {/* ── Step 3: First-time commuter name ── */}
+            {step === 3 && (
+              <motion.div
+                key="step3"
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -16 }}
+                transition={{ duration: 0.3 }}
+              >
+                <div className="mb-8">
+                  <div className="inline-flex items-center justify-center w-12 h-12 bg-primary/10 rounded-xl mb-5">
+                    <User size={22} className="text-primary" />
+                  </div>
+                  <h2 className="font-heading text-2xl font-bold">What's your name?</h2>
+                  <p className="font-body text-sm text-muted-foreground mt-1">
+                    Just once — so drivers know who's calling
+                  </p>
+                  <p className="font-malayalam text-xs text-muted-foreground mt-0.5">
+                    നിങ്ങളുടെ പേര് നൽകുക
+                  </p>
+                </div>
+
+                <form onSubmit={handleSaveName} className="space-y-5">
+                  <div>
+                    <label className="font-body text-sm font-medium text-foreground block mb-2">
+                      Your Name
+                    </label>
+                    <input
+                      type="text"
+                      value={name}
+                      onChange={e => setName(e.target.value)}
+                      placeholder="e.g. Adith MV"
+                      autoFocus
+                      className="w-full px-4 py-3 bg-cream-dark border-2 border-border-warm rounded-xl font-body text-sm focus:border-primary outline-none transition-colors"
+                    />
+                  </div>
+
+                  {error && (
+                    <p className="font-body text-sm text-red-500 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+                      {error}
+                    </p>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={name.trim().length < 2 || loading}
+                    className="w-full btn-pill bg-primary text-primary-foreground font-medium disabled:opacity-40 disabled:cursor-not-allowed shadow-orange-glow hover:bg-[hsl(var(--yellow))] hover:text-foreground transition-all flex items-center justify-center gap-2"
+                  >
+                    {loading
+                      ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Saving...</>
+                      : 'Continue'}
+                  </button>
+
+                  <p className="font-body text-[11px] text-muted-foreground text-center">
+                    <button
+                      type="button"
+                      onClick={() => navigate('/home')}
+                      className="text-muted-foreground hover:text-primary hover:underline"
+                    >
+                      Skip for now
                     </button>
                   </p>
                 </form>
