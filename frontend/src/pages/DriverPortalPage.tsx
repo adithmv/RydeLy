@@ -30,6 +30,8 @@ export default function DriverPortalPage() {
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [fetchError, setFetchError] = useState("");
 
+  const [announcements, setAnnouncements] = useState<string[]>([]);
+
   const [toggling, setToggling] = useState(false);
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
 
@@ -43,6 +45,14 @@ export default function DriverPortalPage() {
       .then((data: DriverProfile) => setProfile(data))
       .catch(err => setFetchError(err.message))
       .finally(() => setLoadingProfile(false));
+
+    // Fetch announcements (non-critical — fail silently)
+    fetch(`${BASE}/commuter/announcements`)
+      .then(r => r.ok ? r.json() : [])
+      .then((data: { id: string; message: string }[]) =>
+        setAnnouncements(data.map(a => a.message))
+      )
+      .catch(() => {});
   }, []);
 
   // ── Auto-dismiss toast ────────────────────────────────────
@@ -191,6 +201,20 @@ export default function DriverPortalPage() {
                 3 warnings will result in account removal. Please ensure professional conduct.
               </p>
             </div>
+          </div>
+        )}
+
+        {/* Announcements */}
+        {announcements.length > 0 && (
+          <div className="bg-card rounded-card border border-border-warm shadow-card p-5 space-y-3">
+            <h2 className="font-heading text-base font-bold flex items-center gap-2">
+              📢 <span>Announcements</span>
+            </h2>
+            {announcements.map((msg, i) => (
+              <div key={i} className="bg-cream-dark rounded-xl px-4 py-3">
+                <p className="font-body text-sm text-foreground leading-relaxed">{msg}</p>
+              </div>
+            ))}
           </div>
         )}
 

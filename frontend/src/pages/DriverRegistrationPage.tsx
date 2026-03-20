@@ -13,6 +13,7 @@ export default function DriverRegistrationPage() {
 
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [autoNumber, setAutoNumber] = useState("");
   const [town, setTown] = useState("");
   const [standId, setStandId] = useState("");
   const towns = ALL_TOWNS;
@@ -32,7 +33,7 @@ export default function DriverRegistrationPage() {
     setStandId("");
   }, [town]);
 
-  const canSubmit = name.trim().length >= 2 && phone.length === 10 && town && standId && !loading;
+  const canSubmit = name.trim().length >= 2 && phone.length === 10 && autoNumber.trim().length >= 2 && town && standId && !loading;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,7 +41,7 @@ export default function DriverRegistrationPage() {
     setLoading(true);
     setError("");
     try {
-      await registerDriver({ name: name.trim(), phone, town, standId });
+      await registerDriver({ name: name.trim(), phone, town, standId, autoNumber: autoNumber.trim() });
       setSuccess(true);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Registration failed. Please try again.");
@@ -157,6 +158,20 @@ export default function DriverRegistrationPage() {
                         className="flex-1 px-4 py-3 bg-cream-dark border-2 border-border-warm rounded-xl font-body text-sm focus:border-primary outline-none transition-colors"
                       />
                     </div>
+                  </div>
+
+                  {/* Auto Number */}
+                  <div>
+                    <label className="font-body text-sm font-medium text-foreground block mb-2">
+                      Auto Number
+                    </label>
+                    <input
+                      type="text"
+                      value={autoNumber}
+                      onChange={e => setAutoNumber(e.target.value.toUpperCase())}
+                      placeholder="e.g. KL 13 AB 1234"
+                      className="w-full px-4 py-3 bg-cream-dark border-2 border-border-warm rounded-xl font-body text-sm focus:border-primary outline-none transition-colors"
+                    />
                   </div>
 
                   {/* Town */}

@@ -31,6 +31,7 @@ def register_driver(data):
         "phone": data["phone"],
         "standId": data["standId"],
         "town": data["town"],
+        "autoNumber": data.get("autoNumber", "N/A"),
         "isVerified": False,
         "isAvailable": False,
         "isBanned": False,

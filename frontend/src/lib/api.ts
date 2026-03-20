@@ -1,4 +1,4 @@
-const BASE = "https://web-production-9e275.up.railway.app"
+const BASE = import.meta.env.VITE_API_URL || ""
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
@@ -93,6 +93,7 @@ export async function registerDriver(data: {
   phone: string;
   town: string;
   standId: string;
+  autoNumber: string;
 }) {
   return request<{ success: boolean }>("/driver/register", {
     method: "POST",
