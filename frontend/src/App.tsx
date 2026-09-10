@@ -1,3 +1,5 @@
+import RidePage from "@/pages/RidePage";
+import { DEMO_MODE } from "@/lib/api";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AppProvider } from "@/context/AppContext";
@@ -54,7 +56,7 @@ function AppLayout() {
           path="/home"
           element={
             <ProtectedRoute requireAuth>
-              <HomePage />
+              {DEMO_MODE ? <RidePage /> : <HomePage />}
             </ProtectedRoute>
           }
         />
@@ -75,6 +77,7 @@ function AppLayout() {
           }
         />
 
+        <Route path="/stands" element={<ProtectedRoute requireAuth><HomePage /></ProtectedRoute>} />
         {/* Admin routes — must be logged in AND admin */}
         <Route
           path="/admin"

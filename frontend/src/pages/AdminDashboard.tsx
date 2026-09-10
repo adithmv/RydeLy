@@ -1,3 +1,5 @@
+import RideHistory from "@/components/RideHistory";
+import { DEMO_MODE, postAnnouncement, getAnnouncements } from "@/lib/api";
 import { useState, useEffect, useCallback } from "react";
 import {
   adminGetDrivers, adminGetUsers, adminGetLogs,
@@ -11,7 +13,7 @@ import {
   XCircle, ShieldCheck, Clock, Loader2, RefreshCw,
   Megaphone,
 } from "lucide-react";
-import { useApp } from "@/context/AppContext";
+import { useApp } from "@/context/app-state";
 import { useNavigate } from "react-router-dom";
 
 // ── Stat card ─────────────────────────────────────────────
@@ -62,8 +64,8 @@ export default function AdminDashboard() {
   const { logout } = useApp();
   const navigate = useNavigate();
 
-  const [tab, setTab] = useState<"drivers" | "users" | "logs" | "reports" | "announce">("drivers");
-  const [driverSubTab, setDriverSubTab] = useState<"pending" | "verified">("pending");
+  const [tab, setTab] = useState<"drivers" | "users" | "logs" | "reports" | "announce" | "rides">("drivers");
+  const [driverSubTab, setDriverSubTab] = useState<"pending" | "verified" | "banned">("pending");
 
   const [drivers, setDrivers] = useState<AdminDriver[]>([]);
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -77,7 +79,8 @@ export default function AdminDashboard() {
   const [announceSending, setAnnounceSending] = useState(false);
   const [announceSuccess, setAnnounceSuccess] = useState(false);
 
-  const BASE = import.meta.env.VITE_API_URL || "http://127.0.0.1:5000";
+  const [messages, setMessages] = useState<{ message: string }[]>([]);
+  useEffect(() => { getAnnouncements().then(setMessages); }, []);
 
   // ── Fetch all data ──────────────────────────────────────
   const fetchAll = useCallback(async () => {
@@ -145,12 +148,8 @@ export default function AdminDashboard() {
     if (!announcement.trim()) return;
     setAnnounceSending(true);
     try {
-      await fetch(`${BASE}/admin/announcement`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ message: announcement.trim() }),
-      });
+      await postAnnouncement(announcement.trim());
+      setMessages(await getAnnouncements());
       setAnnounceSuccess(true);
       setAnnouncement("");
       setTimeout(() => setAnnounceSuccess(false), 3000);
@@ -163,6 +162,7 @@ export default function AdminDashboard() {
   const openReports = reports.filter(r => !r.resolved);
 
   const TABS = [
+    ...(DEMO_MODE ? [{ key: "rides" as const, label: "Rides", icon: <Car size={14} /> }] : []),
     { key: "drivers", label: "Drivers", icon: <Car size={14} /> },
     { key: "users", label: "Users", icon: <Users size={14} /> },
     { key: "logs", label: "Call Logs", icon: <Phone size={14} /> },
@@ -171,7 +171,7 @@ export default function AdminDashboard() {
   ] as const;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pt-24">
 
       {/* Top bar */}
       <div className="bg-foreground text-primary-foreground px-6 py-4 flex items-center justify-between">
@@ -233,11 +233,12 @@ export default function AdminDashboard() {
               ))}
             </div>
 
+            {tab === "rides" && <RideHistory admin />}
             {/* ── DRIVERS TAB ── */}
             {tab === "drivers" && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                 <div className="flex gap-2 mb-4">
-                  {(["pending", "verified"] as const).map(st => (
+                  {(["pending", "verified", "banned"] as const).map(st => (
                     <button
                       key={st}
                       onClick={() => setDriverSubTab(st)}
@@ -247,13 +248,13 @@ export default function AdminDashboard() {
                           : "bg-cream-dark text-muted-foreground hover:text-foreground"
                       }`}
                     >
-                      {st === "pending" ? `Pending (${pending.length})` : `Verified (${verified.length})`}
+                      {st.charAt(0).toUpperCase() + st.slice(1)} ({drivers.filter(d => d.status === st).length})
                     </button>
                   ))}
                 </div>
 
                 <div className="space-y-3">
-                  {(driverSubTab === "pending" ? pending : verified).map(driver => (
+                  {(drivers.filter(d => d.status === driverSubTab)).map(driver => (
                     <div key={driver.id} className="bg-card rounded-2xl border border-border-warm shadow-card px-5 py-4">
                       <div className="flex items-start gap-4">
                         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-yellow-300 flex items-center justify-center text-white font-heading font-bold flex-shrink-0">
@@ -313,7 +314,7 @@ export default function AdminDashboard() {
                       </div>
                     </div>
                   ))}
-                  {(driverSubTab === "pending" ? pending : verified).length === 0 && (
+                  {(drivers.filter(d => d.status === driverSubTab)).length === 0 && (
                     <div className="text-center py-12 text-muted-foreground font-body text-sm">
                       No {driverSubTab} drivers
                     </div>
@@ -443,6 +444,7 @@ export default function AdminDashboard() {
             )}
 
             {/* ── ANNOUNCE TAB ── */}
+            {tab === "announce" && <div className="demo-card">{messages.map((a,i) => <p key={i}>{a.message}</p>)}</div>}
             {tab === "announce" && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-[560px] space-y-5">
                 <div>

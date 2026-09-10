@@ -1,3 +1,5 @@
+import RideHistory from "@/components/RideHistory";
+import { DEMO_MODE } from "@/lib/api";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getCallHistory, CallLog } from "@/lib/api";
@@ -41,6 +43,7 @@ export default function CallHistoryPage() {
           <ArrowLeft size={16} /> Back to search
         </button>
 
+        {DEMO_MODE && <RideHistory />}
         {/* Header */}
         <div className="mb-6">
           <h1 className="font-heading text-2xl font-bold">Call History</h1>

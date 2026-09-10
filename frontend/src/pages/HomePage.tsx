@@ -1,6 +1,6 @@
 import { ALL_TOWNS, getStandsByTown } from "@/data/index";
 import { useNavigate } from "react-router-dom";
-import { useApp } from "@/context/AppContext";
+import { useApp } from "@/context/app-state";
 import { motion } from "framer-motion";
 import {  Navigation, Search, ChevronDown, Clock, ShieldCheck, Phone } from "lucide-react";
 import TownSearchSelect from "@/components/TownSearchSelect";

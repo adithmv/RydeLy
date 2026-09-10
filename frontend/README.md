@@ -1,73 +1,25 @@
-# React + TypeScript + Vite
+# RydeLy frontend demo
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Run `npm install` and `npm run dev` in `frontend/`. No `.env`, Flask process, Firebase project, phone number or API key is required. The default is demo mode.
 
-Currently, two official plugins are available:
+## Try it
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- Open **Login**, choose Commuter, Driver or Admin, then enter the demo. Log out to switch roles without resetting the data.
+- Commuter: choose a town and pickup, optionally enter a destination, then **Find a driver**. Matching takes about 4 seconds, approach 30 seconds, arrival 5 seconds, and the trip 10 seconds. Cancel at any active stage; completed trips have a preview star rating. Ride history updates with your trips.
+- Driver: **Go online**, wait 2 seconds for an offer, then Accept → Arrived → Start trip → Complete trip. Decline and request another offer, or enable auto-play after accepting. The offer countdown is visual only. Finish or cancel an active ride before going offline.
+- Admin: browse Rides (filter by town/status), Drivers (pending/verified/banned), Users, Call Logs, Reports and Announce. Approvals, warnings, removals, reports, registrations and announcements update the in-memory fixtures.
+- **Browse auto stands instead** preserves the existing stand search. Calls show a fictional number and never open the dialer.
 
-## React Compiler
+All state is browser memory: navigation and role switching retain it; a full reload resets fixtures and signs out. Commuter simulations continue while navigating. Driver auto-play stops when its card unmounts. No real ride, payment, SMS or report is sent. The SVG map uses simulated positions; it does not use GPS, map tiles or routing services. Fonts use local fallbacks to avoid external requests.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Structure and backend mode
 
-## Expanding the ESLint configuration
+`src/mock/fixtures.ts` reuses the existing location data. `api.ts` implements the legacy API contracts and local mutations; `rides.ts` owns the shared ride state machine; `simulate.ts` advances time and marker position. React Query handles async UI operations; ride views subscribe to immutable snapshots.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+`src/lib/api.ts` is the mode boundary. Set `VITE_DEMO_MODE=false` and restart Vite to use the preserved backend API and Firebase login. That mode needs the original backend and Firebase configuration. New ride screens are demo-only until corresponding backend endpoints exist; backend mode retains the original stand-search and driver portal. Flask and Firebase implementation files are preserved.
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## Validation
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+`npm run build` type-checks and builds; `npm run lint` checks source; `npm run test:demo` checks mock mutations, state transitions, simulation, cancellation and fixture coverage without a server.
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
-
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+The source plan is in `../docs/RydeLy-frontend-only-plan.md`. The implemented map choice is the fully offline illustration.

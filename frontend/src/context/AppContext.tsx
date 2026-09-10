@@ -1,21 +1,5 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
-
-interface AppContextType {
-  isLoggedIn: boolean;
-  isAdmin: boolean;
-  isDriver: boolean;
-  callCount: number;
-  selectedTown: string;
-  selectedStand: string;
-  login: (driver?: boolean) => void;
-  logout: () => void;
-  loginAsAdmin: () => void;
-  incrementCallCount: () => boolean;
-  setSelectedTown: (town: string) => void;
-  setSelectedStand: (stand: string) => void;
-}
-
-const AppContext = createContext<AppContextType | null>(null);
+import { AppContext } from "./app-state";
+import { useState, useEffect, ReactNode } from "react";
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -81,10 +65,4 @@ export function AppProvider({ children }: { children: ReactNode }) {
       {children}
     </AppContext.Provider>
   );
-}
-
-export function useApp() {
-  const ctx = useContext(AppContext);
-  if (!ctx) throw new Error("useApp must be used inside AppProvider");
-  return ctx;
 }

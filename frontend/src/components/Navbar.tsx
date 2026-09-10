@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
-import { useApp } from '@/context/AppContext';
+import { useApp } from '@/context/app-state';
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
@@ -54,7 +54,7 @@ export default function Navbar() {
             {isLoggedIn && !isDriver && !isAdmin && (
               <>
                 <Link to="/home"    className="font-body text-sm font-medium text-black/70 hover:text-orange transition-colors">Find Auto</Link>
-                <Link to="/history" className="font-body text-sm font-medium text-black/70 hover:text-orange transition-colors">Call History</Link>
+                <Link to="/history" className="font-body text-sm font-medium text-black/70 hover:text-orange transition-colors">Ride & Call History</Link>
               </>
             )}
             {isDriver && (
@@ -95,7 +95,7 @@ export default function Navbar() {
           {isLoggedIn && !isDriver && !isAdmin && (
             <>
               <Link to="/home"    className="font-heading text-3xl font-bold hover:text-orange transition-colors">Find Auto</Link>
-              <Link to="/history" className="font-heading text-3xl font-bold hover:text-orange transition-colors">Call History</Link>
+              <Link to="/history" className="font-heading text-3xl font-bold hover:text-orange transition-colors">Ride & Call History</Link>
             </>
           )}
           {isDriver && <Link to="/driver/portal" className="font-heading text-3xl font-bold hover:text-orange transition-colors">My Portal</Link>}

@@ -1,3 +1,5 @@
+import RideDemo from "@/components/RideDemo";
+import { DEMO_MODE, getDriverProfile, getAnnouncements, logoutApi } from "@/lib/api";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { setAvailability } from "@/lib/api";
@@ -6,7 +8,7 @@ import {
   Phone, ShieldCheck, AlertTriangle, LogOut,
   CheckCircle, XCircle, Loader2, Car
 } from "lucide-react";
-import { useApp } from "@/context/AppContext";
+import { useApp } from "@/context/app-state";
 
 interface DriverProfile {
   name: string;
@@ -20,9 +22,9 @@ interface DriverProfile {
   status: "verified" | "pending" | "banned";
 }
 
-const BASE = import.meta.env.VITE_API_URL || "http://127.0.0.1:5000";
 
-export default function DriverPortalPage() {
+
+function BackendDriverPortalPage() {
   const navigate = useNavigate();
   const { logout } = useApp();
 
@@ -37,22 +39,8 @@ export default function DriverPortalPage() {
 
   // ── Fetch driver profile ──────────────────────────────────
   useEffect(() => {
-    fetch(`${BASE}/driver/profile`, { credentials: "include" })
-      .then(r => {
-        if (!r.ok) throw new Error("Failed to load profile");
-        return r.json();
-      })
-      .then((data: DriverProfile) => setProfile(data))
-      .catch(err => setFetchError(err.message))
-      .finally(() => setLoadingProfile(false));
-
-    // Fetch announcements (non-critical — fail silently)
-    fetch(`${BASE}/commuter/announcements`)
-      .then(r => r.ok ? r.json() : [])
-      .then((data: { id: string; message: string }[]) =>
-        setAnnouncements(data.map(a => a.message))
-      )
-      .catch(() => {});
+    getDriverProfile().then(setProfile).catch(err => setFetchError(err.message)).finally(() => setLoadingProfile(false));
+    getAnnouncements().then(data => setAnnouncements(data.map(a => a.message))).catch(() => {});
   }, []);
 
   // ── Auto-dismiss toast ────────────────────────────────────
@@ -85,7 +73,7 @@ export default function DriverPortalPage() {
   };
 
   const handleLogout = async () => {
-    await fetch(`${BASE}/auth/logout`, { method: "POST", credentials: "include" });
+    await logoutApi();
     logout();
     navigate("/login");
   };
@@ -289,3 +277,4 @@ export default function DriverPortalPage() {
     </main>
   );
 }
+export default function DriverPortalPage() { return DEMO_MODE ? <main className="demo-page"><div className="max-w-3xl mx-auto"><RideDemo driverMode /></div></main> : <BackendDriverPortalPage />; }

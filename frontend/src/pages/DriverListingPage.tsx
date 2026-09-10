@@ -1,6 +1,8 @@
+import { DEMO_MODE } from "@/lib/api";
+import { ALL_STANDS } from "@/data/index";
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { useApp } from "@/context/AppContext";
+import { useApp } from "@/context/app-state";
 import { getDrivers, initiateCall, reportDriver, Driver } from "@/lib/api";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Phone, ShieldCheck, AlertTriangle, Clock, Loader2 } from "lucide-react";
@@ -164,8 +166,8 @@ export default function DriverListingPage() {
   const [reportModal, setReportModal] = useState<Driver | null>(null);
   const [rateLimitError, setRateLimitError] = useState("");
 
-  const town = searchParams.get("town") || "";
-  const stand = searchParams.get("stand") || "";
+  const town = searchParams.get("town") || ALL_STANDS[0].town;
+  const stand = searchParams.get("stand") || ALL_STANDS[0].id;
   const standName = searchParams.get("standName") || stand;
   const remaining = 5 - callCount;
 
@@ -193,7 +195,8 @@ export default function DriverListingPage() {
     try {
       const { phone } = await initiateCall(callModal.id);
       setCallModal(null);
-      window.location.href = `tel:${phone}`;
+      if (DEMO_MODE) alert(`Demo call: ${phone}. No call is placed.`);
+      else window.location.href = `tel:${phone}`;
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to initiate call.";
       setRateLimitError(msg);
@@ -209,7 +212,7 @@ export default function DriverListingPage() {
 
         {/* Back button */}
         <button
-          onClick={() => navigate("/home")}
+          onClick={() => navigate("/stands")}
           className="flex items-center gap-2 font-body text-sm text-muted-foreground hover:text-primary transition-colors mb-8"
         >
           <ArrowLeft size={16} /> Back to search
@@ -340,7 +343,7 @@ export default function DriverListingPage() {
               ഈ സ്ഥലത്ത് ഇപ്പോൾ ആരും ലഭ്യമല്ല
             </p>
             <button
-              onClick={() => navigate("/home")}
+              onClick={() => navigate("/stands")}
               className="btn-pill bg-primary text-primary-foreground font-medium shadow-orange-glow hover:bg-[hsl(var(--yellow))] hover:text-foreground transition-all mt-6"
             >
               Search another stand
