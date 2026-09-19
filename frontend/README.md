@@ -5,7 +5,7 @@ Run `npm install` and `npm run dev` in `frontend/`. No `.env`, Flask process, Fi
 ## Try it
 
 - Open **Login**, choose Commuter, Driver or Admin, then enter the demo. Log out to switch roles without resetting the data.
-- Commuter: choose a town and pickup, optionally enter a destination, then **Find a driver**. Matching takes about 4 seconds, approach 30 seconds, arrival 5 seconds, and the trip 10 seconds. Cancel at any active stage; completed trips have a preview star rating. Ride history updates with your trips.
+- Commuter: choose a town and pickup, enter a destination, then **See prices**, select Ryde Auto or Ryde Comfort, and request the ride. Matching takes about 4 seconds, approach 30 seconds, arrival 5 seconds, and the trip 10 seconds. Cancel at any active stage; completed trips have a preview star rating. Ride history updates with your trips.
 - Driver: **Go online**, wait 2 seconds for an offer, then Accept → Arrived → Start trip → Complete trip. Decline and request another offer, or enable auto-play after accepting. The offer countdown is visual only. Finish or cancel an active ride before going offline.
 - Admin: browse Rides (filter by town/status), Drivers (pending/verified/banned), Users, Call Logs, Reports and Announce. Approvals, warnings, removals, reports, registrations and announcements update the in-memory fixtures.
 - **Browse auto stands instead** preserves the existing stand search. Calls show a fictional number and never open the dialer.
@@ -23,3 +23,7 @@ All state is browser memory: navigation and role switching retain it; a full rel
 `npm run build` type-checks and builds; `npm run lint` checks source; `npm run test:demo` checks mock mutations, state transitions, simulation, cancellation and fixture coverage without a server.
 
 The source plan is in `../docs/RydeLy-frontend-only-plan.md`. The implemented map choice is the fully offline illustration.
+
+## Rider booking experience
+
+The rider page uses a responsive split layout with a full illustrative map, editable pickup/destination suggestions, location swapping, ride selection, cash fare summary, confirmation before cancellation, trip status, and ratings. The compact prototype note remains visible; no driver, GPS service, payment or support service is connected. Map zoom/recenter works locally. Ride types use fixed prototype estimates (Auto ₹95, Comfort ₹125), not geographic routing or live fare calculations.

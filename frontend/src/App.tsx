@@ -23,7 +23,7 @@ const queryClient = new QueryClient();
 // Separate component so we can use useLocation inside BrowserRouter
 function AppLayout() {
   const { pathname } = useLocation();
-  const hideFooter = pathname === "/admin";
+  const hideFooter = pathname === "/admin" || (DEMO_MODE && pathname === "/home");
 
   return (
     <>

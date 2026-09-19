@@ -156,3 +156,21 @@ try {
 console.log(
   "Demo checks passed: API mutations, fixtures, manual and timed lifecycle, duplicate requests, cancellation at every stage, unavailable drivers and timer cleanup.",
 );
+
+const comfort = await requestRide({
+  town: stand.town,
+  pickup: stand.name,
+  destination: "Town centre",
+  service: "comfort",
+});
+assert.equal(comfort.fare, 125);
+assert.equal(comfort.service, "comfort");
+await cancelRide(comfort.id);
+const standard = await requestRide({
+  town: stand.town,
+  pickup: stand.name,
+  service: "auto",
+});
+assert.equal(standard.fare, 95);
+await cancelRide(standard.id);
+console.log("Ride selection preserves the selected service and fare.");

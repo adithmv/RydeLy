@@ -16,13 +16,13 @@ export default function LoginPage() {
   return (
     <main className="demo-page">
       <section className="demo-card max-w-xl mx-auto">
-        <p className="demo-eyebrow">RYDELY • INTERACTIVE DEMO</p>
+        <p className="demo-eyebrow">WELCOME TO RYDELY</p>
         <h1>Your town. Your ride.</h1>
         <p>
-          Explore RydeLy with a sample account. No phone number or OTP needed.
+          Choose your account to get started.
         </p>
         <label className="demo-label">
-          Explore as
+          Continue as
           <select value={role} onChange={(e) => setRole(e.target.value)}>
             <option value="commuter">Commuter</option>
             <option value="driver">Driver</option>
@@ -43,13 +43,13 @@ export default function LoginPage() {
             );
           }}
         >
-          Enter {role} demo →
+          Continue →
         </button>
         <p className="text-sm">
-          All data is fictional. Reloading resets this demo.
+          Prototype access · no real bookings or charges.
         </p>
         <Link to="/register" className="text-primary underline">
-          Try driver registration
+          Register as a driver
         </Link>
       </section>
     </main>

@@ -18,6 +18,7 @@ export interface Ride {
   driverName?: string;
   autoNumber?: string;
   fare: number;
+  service?: "auto" | "comfort";
   progress: number;
   createdAt: string;
   source: "commuter" | "driver" | "fixture";
@@ -50,6 +51,7 @@ export async function requestRide(data: {
   town: string;
   pickup: string;
   destination?: string;
+  service?: "auto" | "comfort";
   source?: "commuter" | "driver";
 }) {
   const source = data.source ?? "commuter";
@@ -63,7 +65,7 @@ export async function requestRide(data: {
     destination: data.destination?.trim() || "Town centre",
     id: crypto.randomUUID(),
     status: "requested",
-    fare: 95,
+    fare: data.service === "comfort" ? 125 : 95,
     progress: 0,
     createdAt: new Date().toISOString(),
   };
