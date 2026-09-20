@@ -1,3 +1,4 @@
+from app.security import key, text
 from flask import request, jsonify, session
 from app.commuter import commuter_bp
 from app.middleware.auth_guard import commuter_required
@@ -33,7 +34,7 @@ def initiate_call():
     if not data or "driverId" not in data:
         return jsonify({"error": "driverId is required"}), 400
 
-    driver_id = data["driverId"]
+    driver_id = key(data["driverId"])
     driver = get_driver(driver_id)
 
     if not driver:
@@ -82,7 +83,7 @@ def report_driver():
     if not data["reason"].strip():
         return jsonify({"error": "Reason cannot be empty"}), 400
 
-    driver = get_driver(data["driverId"])
+    driver = get_driver(key(data["driverId"]))
     if not driver:
         return jsonify({"error": "Driver not found"}), 404
 
@@ -90,7 +91,7 @@ def report_driver():
         reported_by=session["uid"],
         reported_type="driver",
         target_id=data["driverId"],
-        reason=data["reason"].strip()
+        reason=text(data["reason"],"Reason",1,1000)
     )
 
     return jsonify({

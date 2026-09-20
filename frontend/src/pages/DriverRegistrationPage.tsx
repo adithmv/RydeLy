@@ -1,3 +1,4 @@
+import { useApp } from "@/context/app-state";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { registerDriver } from "@/lib/api";
@@ -10,9 +11,10 @@ import { ALL_TOWNS, getStandsByTown } from "@/data/index";
 export default function DriverRegistrationPage() {
 
   const navigate = useNavigate();
+  const { user } = useApp();
 
   const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
+  const phone = user?.phone.replace(/^\+91/, "") ?? "";
   const [autoNumber, setAutoNumber] = useState("");
   const [town, setTown] = useState("");
   const [standId, setStandId] = useState("");
@@ -153,7 +155,7 @@ export default function DriverRegistrationPage() {
                       <input
                         type="tel"
                         value={phone}
-                        onChange={e => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                        readOnly
                         placeholder="10-digit mobile number"
                         className="flex-1 px-4 py-3 bg-cream-dark border-2 border-border-warm rounded-xl font-body text-sm focus:border-primary outline-none transition-colors"
                       />

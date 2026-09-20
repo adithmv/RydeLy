@@ -1,19 +1,4 @@
-const BASE = import.meta.env.VITE_API_URL || ""
-
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    headers: { "Content-Type": "application/json", ...options.headers },
-    credentials: "include",
-    ...options,
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: "Unknown error" }));
-    throw new Error(err.error || `HTTP ${res.status}`);
-  }
-  return res.json();
-}
-
-// ── AUTH ──────────────────────────────────────────────────
+import { request } from "./http";
 export async function verifyToken(idToken: string) {
   return request<{
     role: "commuter" | "driver" | "admin";

@@ -5,3 +5,5 @@ firebase-admin
 python-dotenv
 cryptography
 gunicorn
+
+redis>=5,<9

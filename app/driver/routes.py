@@ -1,6 +1,8 @@
 from flask import request, jsonify, session
 from app.driver import driver_bp
-from app.middleware.auth_guard import driver_required
+from app.middleware.auth_guard import driver_required, commuter_required
+from app.security import body, text
+from firebase_admin import db
 from app.services.firebase_service import (
     register_driver,
     get_all_stands,
@@ -12,28 +14,17 @@ from app.services.firebase_service import (
 
 
 @driver_bp.route("/register", methods=["POST"])
+@commuter_required
 def register():
-    data = request.get_json()
-    required_fields = ["name", "phone", "standId", "town"]
-    for field in required_fields:
-        if field not in data or not data[field]:
-            return jsonify({"error": f"{field} is required"}), 400
-
-    phone = data["phone"].strip()
-    if phone.startswith("+91"):
-        if len(phone) != 13:
-            return jsonify({"error": "Invalid phone number"}), 400
-    else:
-        if len(phone) != 10 or not phone.isdigit():
-            return jsonify({"error": "Invalid phone number"}), 400
-        phone = "+91" + phone
-
-    data["phone"] = phone
-    driver = register_driver(data)
-    return jsonify({
-        "message": "Registration successful. Awaiting admin approval.",
-        "driverId": driver["id"]
-    }), 201
+    data = body()
+    if get_driver_by_phone(session["phone"]):
+        return jsonify(error="You already have a driver application"), 409
+    cleaned = {field:text(data.get(field),field,2,120) for field in ("name","standId","town","autoNumber")}
+    cleaned["phone"] = session["phone"]
+    driver = register_driver(cleaned)
+    db.reference(f"/drivers/{driver['id']}").update({"uid":session["uid"]})
+    db.reference(f"/users/{session['uid']}").update({"driverId":driver["id"]})
+    return jsonify(success=True,driverId=driver["id"]), 201
 
 
 @driver_bp.route("/stands", methods=["GET"])
@@ -66,21 +57,7 @@ def report_commuter():
 @driver_bp.route("/availability", methods=["PATCH"])
 @driver_required
 def toggle_availability():
-    data = request.get_json()
-    if data is None or "isAvailable" not in data:
-        return jsonify({"error": "isAvailable field is required"}), 400
-    if not isinstance(data["isAvailable"], bool):
-        return jsonify({"error": "isAvailable must be true or false"}), 400
-
-    driver_id = session.get("driverId")
-    if not driver_id:
-        return jsonify({"error": "Driver ID not found in session"}), 400
-
-    updated = update_driver_availability(driver_id, data["isAvailable"])
-    return jsonify({
-        "message": "Availability updated.",
-        "isAvailable": updated.get("isAvailable")
-    }), 200
+    return jsonify(error="Use the live driver portal to share location and go online"), 409
 
 
 @driver_bp.route("/profile", methods=["GET"])

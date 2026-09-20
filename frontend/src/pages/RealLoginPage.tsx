@@ -8,7 +8,7 @@ import {
   RecaptchaVerifier,
   ConfirmationResult,
 } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { getFirebaseAuth } from '@/lib/firebase';
 
 const BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
 
@@ -48,14 +48,14 @@ export default function LoginPage() {
     try {
       if (!recaptchaVerifierRef.current) {
         recaptchaVerifierRef.current = new RecaptchaVerifier(
-          auth,
+          getFirebaseAuth(),
           recaptchaContainerRef.current!,
           { size: 'invisible' }
         );
       }
 
       const result = await signInWithPhoneNumber(
-        auth,
+        getFirebaseAuth(),
         '+91' + phone,
         recaptchaVerifierRef.current
       );

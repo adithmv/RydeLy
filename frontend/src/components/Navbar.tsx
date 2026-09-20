@@ -26,7 +26,7 @@ export default function Navbar() {
     ? 'bg-[rgba(253,250,244,0.88)] backdrop-blur-[20px] border-b border-[#E8DDD0] shadow-sm'
     : 'bg-transparent';
 
-  const handleLogout = () => { logout(); navigate('/'); };
+  const handleLogout = async () => { try { await logout(); navigate('/login'); } catch { alert('Sign out failed. Please retry.'); } };
 
   return (
     <>
@@ -60,9 +60,7 @@ export default function Navbar() {
             {isDriver && (
               <Link to="/driver/portal" className="font-body text-sm font-medium text-black/70 hover:text-orange transition-colors">My Portal</Link>
             )}
-            {isAdmin && (
-              <Link to="/admin" className="font-body text-sm font-medium text-black/70 hover:text-orange transition-colors">Admin</Link>
-            )}
+            
             {isLoggedIn ? (
               <div className="flex items-center gap-3">
         
@@ -99,7 +97,7 @@ export default function Navbar() {
             </>
           )}
           {isDriver && <Link to="/driver/portal" className="font-heading text-3xl font-bold hover:text-orange transition-colors">My Portal</Link>}
-          {isAdmin   && <Link to="/admin"         className="font-heading text-3xl font-bold hover:text-orange transition-colors">Admin</Link>}
+          
           {isLoggedIn ? (
             <button onClick={() => { handleLogout(); setMenuOpen(false); }} className="btn-pill bg-[#0F0E0C] text-[#FDFAF4] text-lg mt-4">Logout</button>
           ) : (

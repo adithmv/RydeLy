@@ -6,11 +6,19 @@ from flask_limiter.util import get_remote_address
 
 
 def init_firebase(app):
+    if firebase_admin._apps:
+        return
     cred = None
+
+    if app.config.get("FIREBASE_CREDENTIALS_JSON"):
+        import json
+        cred = credentials.Certificate(json.loads(app.config["FIREBASE_CREDENTIALS_JSON"]))
 
     # Option 1 — individual env variables (Railway/production)
     private_key = os.getenv("FIREBASE_PRIVATE_KEY")
-    if private_key:
+    if cred:
+        pass
+    elif private_key:
         # Railway sometimes escapes \n as literal \\n — fix it
         private_key = private_key.replace("\\n", "\n")
 
@@ -46,5 +54,5 @@ def init_firebase(app):
 
 limiter = Limiter(
     key_func=get_remote_address,
-    default_limits=[]
+    default_limits=["300 per minute"]
 )

@@ -1,135 +1,68 @@
-from flask import request, jsonify, session
-from app.auth import auth_bp
-from app.services.otp_service import verify_firebase_token
-from app.services.firebase_service import (
-    get_or_create_user, get_driver_by_phone
-)
+import secrets
+import time
+from flask import jsonify, session, g
 from firebase_admin import db
+from app.auth import auth_bp
+from app.extensions import limiter
+from app.security import body, text
+from app.services.otp_service import verify_firebase_token
+from app.services.firebase_service import get_or_create_user, get_driver_by_phone
+from app.middleware.auth_guard import commuter_required
 
 
-@auth_bp.route("/verify-token", methods=["POST"])
+@auth_bp.get("/csrf")
+def csrf():
+    session.setdefault("csrf", secrets.token_urlsafe(32))
+    return jsonify(csrfToken=session["csrf"])
+
+
+@auth_bp.post("/verify-token")
+@limiter.limit("10 per minute")
 def verify_token():
-    data = request.get_json()
-
-    # DEV ONLY: bypass Firebase for test tokens
-    if data and data.get("idToken", "").startswith("test-token-"):
-        phone = "+91" + data["idToken"].replace("test-token-", "")
-        uid = "test-uid-" + phone
-        user = get_or_create_user(uid, phone)
-        is_admin = db.reference(f"/admins/{uid}").get() is not None
-        driver = get_driver_by_phone(phone)
-        is_driver = driver is not None and driver.get("isVerified")
-        role = "admin" if is_admin else ("driver" if is_driver else "commuter")
-        session["uid"] = uid
-        session["phone"] = phone
-        session["role"] = role
-        if is_driver:
-            session["driverId"] = driver["id"]
-        response = {"message": "Login successful", "role": role, "uid": uid}
-        if role == "commuter":
-            name = user.get("name")
-            response["isFirstLogin"] = not bool(name)
-            response["name"] = name or ""
-        return jsonify(response), 200
-
-    if not data or "idToken" not in data:
-        return jsonify({"error": "idToken is required"}), 400
-
-    # 1. Verify Firebase token
+    token = text(body().get("idToken"), "idToken", 20, 12000)
     try:
-        decoded = verify_firebase_token(data["idToken"])
-    except ValueError as e:
-        return jsonify({"error": str(e)}), 401
-
-    uid = decoded["uid"]
-    phone = decoded.get("phone_number", "")
-
-    # 2. Check if banned
+        decoded = verify_firebase_token(token)
+    except ValueError as error:
+        return jsonify(error=str(error)), 401
+    uid, phone = decoded["uid"], decoded.get("phone_number")
+    if not phone or time.time() - decoded.get("auth_time", 0) > 300:
+        return jsonify(error="A recent verified phone sign-in is required"), 401
     user = get_or_create_user(uid, phone)
     if user.get("isBanned"):
-        return jsonify({"error": "Account is banned"}), 403
-
-    # 3. Role detection
-    is_admin = db.reference(f"/admins/{uid}").get() is not None
+        return jsonify(error="Account is unavailable"), 403
+    # Link existing verified-phone registration once; never trust a caller-supplied role.
     driver = get_driver_by_phone(phone)
-    is_driver = driver is not None and driver.get("isVerified")
-
-    # 4. Assign role
-    if is_admin:
-        role = "admin"
-    elif is_driver:
-        role = "driver"
-    else:
-        role = "commuter"
-
-    # 5. Set session
-    session["uid"] = uid
-    session["phone"] = phone
-    session["role"] = role
-    if is_driver:
-        session["driverId"] = driver["id"]
-
-    # 6. Build response
-    response = {
-        "message": "Login successful",
-        "role": role,
-        "uid": uid,
-    }
-
-    # 7. First-time commuter — check if name exists
-    if role == "commuter":
-        name = user.get("name")
-        response["isFirstLogin"] = not bool(name)
-        response["name"] = name or ""
-
-    return jsonify(response), 200
-
-
-@auth_bp.route("/set-name", methods=["POST"])
-def set_name():
-    """Called after first login to save commuter's name."""
-    if "uid" not in session:
-        return jsonify({"error": "Authentication required"}), 401
-
-    data = request.get_json()
-    if not data or "name" not in data:
-        return jsonify({"error": "name is required"}), 400
-
-    name = data["name"].strip()
-    if len(name) < 2:
-        return jsonify({"error": "Name must be at least 2 characters"}), 400
-
-    db.reference(f"/users/{session['uid']}").update({"name": name})
-    session["name"] = name
-    return jsonify({"message": "Name saved.", "name": name}), 200
-
-
-@auth_bp.route("/logout", methods=["POST"])
-def logout():
+    if driver and not driver.get("uid"):
+        db.reference(f"/drivers/{driver['id']}").update({"uid": uid})
+        db.reference(f"/users/{uid}").update({"driverId": driver["id"]})
+    old_sid = session.get("sid")
+    if old_sid:
+        db.reference(f"/sessions/{old_sid}").delete()
     session.clear()
-    return jsonify({"message": "Logged out"}), 200
+    sid = secrets.token_urlsafe(32)
+    session.update(sid=sid, csrf=secrets.token_urlsafe(32))
+    session.permanent = True
+    db.reference(f"/sessions/{sid}").set({"uid": uid, "authTime": decoded["auth_time"], "expiresAt": time.time() + 43200})
+    return jsonify(success=True, csrfToken=session["csrf"])
 
-@auth_bp.route("/mock-login", methods=["POST"])
-def mock_login():
-    data = request.get_json()
-    phone = data.get("phone", "")
-    role = data.get("role", "commuter")
 
-    if role == "admin":
-        session["uid"] = "admin-" + phone
-        session["phone"] = phone
-        session["role"] = "admin"
-        return jsonify({"role": "admin"}), 200
+@auth_bp.get("/me")
+@commuter_required
+def me():
+    return jsonify(g.user)
 
-    driver = get_driver_by_phone(phone)
-    if driver:
-        session["uid"] = driver["id"]
-        session["phone"] = phone
-        session["role"] = "driver"
-        session["driverId"] = driver["id"]
-        return jsonify({"role": "driver"}), 200
 
-    session["uid"] = "mock-" + phone
-    session["phone"] = phone
-    session["role"] = "commuter"
-    return jsonify({"role": "commuter"}), 200
+@auth_bp.post("/set-name")
+@commuter_required
+def set_name():
+    name = text(body().get("name"), "Name", 2, 80)
+    db.reference(f"/users/{g.user['uid']}").update({"name": name})
+    return jsonify(success=True)
+
+
+@auth_bp.post("/logout")
+def logout():
+    if session.get("sid"):
+        db.reference(f"/sessions/{session['sid']}").delete()
+    session.clear()
+    return jsonify(success=True)

@@ -1,65 +1,67 @@
+import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { AppContext } from "./app-state";
-import { useState, useEffect, ReactNode } from "react";
-
+import { getIdentity, type Identity } from "@/lib/live";
+import { request } from "@/lib/http";
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isDriver, setIsDriver] = useState(false);
-  const [callCount, setCallCount] = useState(0);
-  const [selectedTown, setSelectedTown] = useState("");
-  const [selectedStand, setSelectedStand] = useState("");
-
-  // Reset call count every hour
-  useEffect(() => {
-    const interval = setInterval(() => setCallCount(0), 60 * 60 * 1000);
-    return () => clearInterval(interval);
+  const cache = useQueryClient();
+  const [user, setUser] = useState<Identity | null>(null),
+    [authLoading, setAuthLoading] = useState(true);
+  const [callCount, setCallCount] = useState(0),
+    [selectedTown, setSelectedTown] = useState(""),
+    [selectedStand, setSelectedStand] = useState("");
+  const refreshSession = useCallback(async () => {
+    try {
+      const identity = await getIdentity();
+      setUser(identity);
+      return identity;
+    } catch {
+      setUser(null);
+      return null;
+    } finally {
+      setAuthLoading(false);
+    }
   }, []);
-
-  // login(true)  → driver login
-  // login(false) → commuter login (default)
-  const login = (driver = false) => {
-    setIsLoggedIn(true);
-    setIsAdmin(false);
-    setIsDriver(driver);
+  useEffect(() => {
+    void refreshSession();
+    const expired = () => {
+      setUser(null);
+      cache.clear();
+    };
+    window.addEventListener("rydely:session-expired", expired);
+    return () => window.removeEventListener("rydely:session-expired", expired);
+  }, [refreshSession, cache]);
+  const login = async () => {
+    await refreshSession();
   };
-
-  const loginAsAdmin = () => {
-    setIsLoggedIn(true);
-    setIsAdmin(true);
-    setIsDriver(false);
-  };
-
-  const logout = () => {
-    setIsLoggedIn(false);
-    setIsAdmin(false);
-    setIsDriver(false);
+  const logout = async () => {
+    await request("/auth/logout", { method: "POST" });
+    setUser(null);
+    cache.clear();
     setCallCount(0);
-    setSelectedTown("");
-    setSelectedStand("");
   };
-
-  // Returns true if call allowed, false if rate limit hit
-  const incrementCallCount = (): boolean => {
-    if (callCount >= 5) return false;
-    setCallCount((c) => c + 1);
-    return true;
-  };
-
   return (
     <AppContext.Provider
       value={{
-        isLoggedIn,
-        isAdmin,
-        isDriver,
+        user,
+        authLoading,
+        isLoggedIn: !!user,
+        isAdmin: user?.role === "admin",
+        isDriver: user?.role === "driver",
+        login,
+        loginAsAdmin: login,
+        logout,
+        refreshSession,
         callCount,
         selectedTown,
         selectedStand,
-        login,
-        logout,
-        loginAsAdmin,
-        incrementCallCount,
         setSelectedTown,
         setSelectedStand,
+        incrementCallCount: () => {
+          if (callCount >= 5) return false;
+          setCallCount((c) => c + 1);
+          return true;
+        },
       }}
     >
       {children}

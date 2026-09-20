@@ -1,5 +1,5 @@
-import RidePage from "@/pages/RidePage";
-import { DEMO_MODE } from "@/lib/api";
+import LiveRiderPage from "@/pages/LiveRiderPage";
+
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AppProvider } from "@/context/AppContext";
@@ -12,9 +12,10 @@ import LoginPage from "@/pages/LoginPage";
 import HomePage from "@/pages/HomePage";
 import DriverListingPage from "@/pages/DriverListingPage";
 import DriverRegistrationPage from "@/pages/DriverRegistrationPage";
-import AdminDashboard from "@/pages/AdminDashboard";
+import { lazy, Suspense } from "react";
+const AdminDashboard = lazy(() => import("@/pages/AdminDashboard"));
 import CallHistoryPage from "@/pages/CallHistoryPage";
-import DriverPortalPage from "@/pages/DriverPortalPage";
+import LiveDriverPage from "@/pages/LiveDriverPage";
 import DriverComplaintPage from "@/pages/DriverComplaintPage";
 import NotFound from "@/pages/NotFound";
 
@@ -23,13 +24,15 @@ const queryClient = new QueryClient();
 // Separate component so we can use useLocation inside BrowserRouter
 function AppLayout() {
   const { pathname } = useLocation();
-  const hideFooter = pathname === "/admin" || (DEMO_MODE && pathname === "/home");
+  const hideFooter =
+    pathname === "/admin" ||
+    pathname === "/home" ||
+    pathname === "/driver/portal";
 
   return (
     <>
       <Navbar />
       <Routes>
-
         {/* Public routes */}
         <Route path="/" element={<LandingPage />} />
 
@@ -45,7 +48,7 @@ function AppLayout() {
         <Route
           path="/register"
           element={
-            <ProtectedRoute redirectIfAuth>
+            <ProtectedRoute requireAuth>
               <DriverRegistrationPage />
             </ProtectedRoute>
           }
@@ -56,7 +59,7 @@ function AppLayout() {
           path="/home"
           element={
             <ProtectedRoute requireAuth>
-              {DEMO_MODE ? <RidePage /> : <HomePage />}
+              <LiveRiderPage />
             </ProtectedRoute>
           }
         />
@@ -77,13 +80,24 @@ function AppLayout() {
           }
         />
 
-        <Route path="/stands" element={<ProtectedRoute requireAuth><HomePage /></ProtectedRoute>} />
+        <Route
+          path="/stands"
+          element={
+            <ProtectedRoute requireAuth>
+              <HomePage />
+            </ProtectedRoute>
+          }
+        />
         {/* Admin routes — must be logged in AND admin */}
         <Route
           path="/admin"
           element={
             <ProtectedRoute requireAuth requireAdmin>
-              <AdminDashboard />
+              <Suspense
+                fallback={<p className="demo-page">Loading management…</p>}
+              >
+                <AdminDashboard />
+              </Suspense>
             </ProtectedRoute>
           }
         />
@@ -93,7 +107,7 @@ function AppLayout() {
           path="/driver/portal"
           element={
             <ProtectedRoute requireAuth requireDriver>
-              <DriverPortalPage />
+              <LiveDriverPage />
             </ProtectedRoute>
           }
         />
@@ -108,7 +122,6 @@ function AppLayout() {
 
         {/* 404 */}
         <Route path="*" element={<NotFound />} />
-
       </Routes>
       {!hideFooter && <Footer />}
     </>

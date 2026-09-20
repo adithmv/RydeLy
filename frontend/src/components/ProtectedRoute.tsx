@@ -16,7 +16,9 @@ export default function ProtectedRoute({
   requireDriver = false,
   redirectIfAuth = false,
 }: ProtectedRouteProps) {
-  const { isLoggedIn, isAdmin, isDriver } = useApp();
+  const { isLoggedIn, isAdmin, isDriver, authLoading } = useApp();
+
+  if (authLoading) return <main className="demo-page" role="status">Checking your session…</main>;
 
   // Already logged in trying to visit /login or /register
   if (redirectIfAuth && isLoggedIn) {

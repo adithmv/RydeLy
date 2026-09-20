@@ -1,5 +1,5 @@
 from firebase_admin import db
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 def get_or_create_user(uid, phone):
@@ -13,7 +13,7 @@ def get_or_create_user(uid, phone):
             "role": "commuter",
             "warningCount": 0,
             "isBanned": False,
-            "registeredAt": datetime.utcnow().isoformat()
+            "registeredAt": datetime.now(timezone.utc).isoformat()
         }
         ref.set(new_user)
         return new_user
@@ -36,7 +36,7 @@ def register_driver(data):
         "isAvailable": False,
         "isBanned": False,
         "warningCount": 0,
-        "registeredAt": datetime.utcnow().isoformat()
+        "registeredAt": datetime.now(timezone.utc).isoformat()
     }
 
     new_driver_ref.set(driver)
@@ -112,7 +112,7 @@ def create_report(reported_by, reported_type, target_id, reason):
         "targetId": target_id,
         "reason": reason,
         "resolvedByAdmin": False,
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.now(timezone.utc).isoformat()
     }
     new_report_ref.set(report)
     return {"id": new_report_ref.key, **report}
@@ -130,6 +130,8 @@ def get_all_reports():
 def resolve_report(report_id):
     """Marks a report as resolved."""
     ref = db.reference(f"/reports/{report_id}")
+    if not ref.get():
+        return None
     ref.update({"resolvedByAdmin": True})
     return ref.get()
 
@@ -159,7 +161,7 @@ def get_announcements():
 
 def add_announcement(message):
     """Store a single active announcement, replacing any previous one."""
-    db.reference("/announcement").set({"message": message, "timestamp": __import__('datetime').datetime.utcnow().isoformat()})
+    db.reference("/announcement").set({"message": message, "timestamp": __import__('datetime').datetime.now(timezone.utc).isoformat()})
     return {"id": "active", "message": message}
 
 def delete_announcement(announcement_id):
@@ -179,8 +181,8 @@ def get_driver_profile(driver_id):
         stand_name = stand_ref.get("name", driver.get("standId", ""))
 
     # Count calls this week
-    from datetime import datetime, timedelta
-    one_week_ago = (datetime.utcnow() - timedelta(days=7)).isoformat()
+    from datetime import datetime, timezone, timedelta
+    one_week_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
     logs_ref = db.reference("/callLogs").get() or {}
     calls_this_week = sum(
         1 for log in logs_ref.values()
@@ -216,6 +218,8 @@ def get_all_drivers_admin():
         return []
 
     result = []
+    from app.rides.routes import fresh
+    presence = db.reference("/rideOperations/presence").get() or {}
     stands_ref = db.reference("/stands").get() or {}
 
     for driver_id, driver in drivers.items():
@@ -242,7 +246,7 @@ def get_all_drivers_admin():
             "autoNumber": driver.get("autoNumber", "N/A"),
             "status": status,
             "warningCount": driver.get("warningCount", 0),
-            "isAvailable": driver.get("isAvailable", False),
+            "isAvailable": bool(presence.get(driver_id, {}).get("online") and fresh(presence.get(driver_id))),
         })
 
     return result
