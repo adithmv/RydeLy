@@ -12,6 +12,7 @@ import LoginPage from "@/pages/LoginPage";
 import HomePage from "@/pages/HomePage";
 import DriverListingPage from "@/pages/DriverListingPage";
 import DriverRegistrationPage from "@/pages/DriverRegistrationPage";
+import DriverEarningsPage from "@/pages/DriverEarningsPage";
 import { lazy, Suspense } from "react";
 const AdminDashboard = lazy(() => import("@/pages/AdminDashboard"));
 import CallHistoryPage from "@/pages/CallHistoryPage";
@@ -47,11 +48,7 @@ function AppLayout() {
         />
         <Route
           path="/register"
-          element={
-            <ProtectedRoute requireAuth>
-              <DriverRegistrationPage />
-            </ProtectedRoute>
-          }
+          element={<DriverRegistrationPage />}
         />
 
         {/* Commuter routes — must be logged in */}
@@ -108,6 +105,14 @@ function AppLayout() {
           element={
             <ProtectedRoute requireAuth requireDriver>
               <LiveDriverPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/driver/earnings"
+          element={
+            <ProtectedRoute requireAuth requireDriver>
+              <DriverEarningsPage />
             </ProtectedRoute>
           }
         />

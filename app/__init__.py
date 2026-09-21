@@ -47,4 +47,9 @@ def create_app(env=None, overrides=None):
     @app.get("/health")
     def health():
         return jsonify(status="ok")
+
+    @app.get("/")
+    def root():
+        return jsonify(status="ok", service="RydeLy API", frontend=app.config["ALLOWED_ORIGINS"][0])
+
     return app

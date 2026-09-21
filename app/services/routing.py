@@ -54,12 +54,28 @@ def route(pickup, destination, service):
         raise BadRequest("This trip is outside our service distance")
     data = provider("/v2/directions/driving-car/geojson", {
         "coordinates":[[pickup_point["lng"],pickup_point["lat"]],[destination_point["lng"],destination_point["lat"]]],
-        "instructions":False})
+        "instructions":True})
     try:
         feature = data["features"][0]
         summary = feature["properties"]["summary"]
         km, seconds = summary["distance"]/1000, summary["duration"]
         geometry = feature["geometry"]["coordinates"]
+        
+        # Extract turn-by-turn instructions
+        steps = []
+        if "segments" in feature["properties"]:
+            for segment in feature["properties"]["segments"]:
+                if "steps" in segment:
+                    for step in segment["steps"]:
+                        steps.append({
+                            "instruction": step.get("instruction", ""),
+                            "distance": step.get("distance", 0),  # meters
+                            "duration": step.get("duration", 0),  # seconds
+                            "type": step.get("type", 0),
+                            "name": step.get("name", ""),
+                            "wayPoints": step.get("wayPoints", [0, 0]),
+                        })
+        
         if not math.isfinite(km) or not math.isfinite(seconds) or km <= 0 or seconds < 0 or not geometry:
             raise ValueError()
     except (KeyError, IndexError, TypeError, ValueError):
@@ -71,6 +87,14 @@ def route(pickup, destination, service):
     per_km = Decimal(str(current_app.config["FARE_PER_KM"]))
     multiplier = Decimal(str(current_app.config["FARE_COMFORT_MULTIPLIER"] if service == "comfort" else 1))
     amount = ((base + max(Decimal(0), Decimal(str(km))-included)*per_km)*multiplier).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    # Minimum fare (floor) = computed fare
+    minimum_fare = float(amount)
+    # Maximum fare = minimum fare + 50%
+    maximum_fare = float((amount * Decimal("1.5")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
     return {"distanceKm":round(km, 3), "durationSeconds":round(seconds), "geometry":geometry,
-            "fare":float(amount), "currency":"INR", "service":service,
-            "tariff":{"base":float(base),"includedKm":float(included),"perKm":float(per_km),"multiplier":float(multiplier)}}
+            "fare": minimum_fare,  # Backward compatibility
+            "minimumFare": minimum_fare,
+            "maximumFare": maximum_fare,
+            "currency":"INR", "service":service,
+            "tariff":{"base":float(base),"includedKm":float(included),"perKm":float(per_km),"multiplier":float(multiplier)},
+            "steps": steps}

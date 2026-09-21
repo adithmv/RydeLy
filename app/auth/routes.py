@@ -24,17 +24,39 @@ def verify_token():
         decoded = verify_firebase_token(token)
     except ValueError as error:
         return jsonify(error=str(error)), 401
-    uid, phone = decoded["uid"], decoded.get("phone_number")
-    if not phone or time.time() - decoded.get("auth_time", 0) > 300:
-        return jsonify(error="A recent verified phone sign-in is required"), 401
-    user = get_or_create_user(uid, phone)
+
+    uid = decoded["uid"]
+    provider_data = decoded.get("firebase", {}).get("sign_in_provider") or decoded.get("provider_id")
+    # Determine auth provider and primary identifier
+    phone = decoded.get("phone_number")
+    email = decoded.get("email")
+    email_verified = decoded.get("email_verified", False)
+
+    if provider_data == "phone" or phone:
+        auth_provider = "phone"
+        identifier = phone
+        if not identifier or time.time() - decoded.get("auth_time", 0) > 300:
+            return jsonify(error="A recent verified phone sign-in is required"), 401
+    elif provider_data == "password" or email:
+        auth_provider = "email"
+        identifier = email
+        if not identifier:
+            return jsonify(error="Email not found in token"), 401
+        # For email auth, we don't require recent auth_time check
+    else:
+        return jsonify(error="Unsupported authentication provider"), 401
+
+    user = get_or_create_user(uid, identifier, auth_provider)
     if user.get("isBanned"):
         return jsonify(error="Account is unavailable"), 403
-    # Link existing verified-phone registration once; never trust a caller-supplied role.
-    driver = get_driver_by_phone(phone)
-    if driver and not driver.get("uid"):
-        db.reference(f"/drivers/{driver['id']}").update({"uid": uid})
-        db.reference(f"/users/{uid}").update({"driverId": driver["id"]})
+
+    # Link existing driver registration by phone if this is a phone auth user
+    if auth_provider == "phone" and phone:
+        driver = get_driver_by_phone(phone)
+        if driver and not driver.get("uid"):
+            db.reference(f"/drivers/{driver['id']}").update({"uid": uid})
+            db.reference(f"/users/{uid}").update({"driverId": driver["id"]})
+
     old_sid = session.get("sid")
     if old_sid:
         db.reference(f"/sessions/{old_sid}").delete()
@@ -42,7 +64,12 @@ def verify_token():
     sid = secrets.token_urlsafe(32)
     session.update(sid=sid, csrf=secrets.token_urlsafe(32))
     session.permanent = True
-    db.reference(f"/sessions/{sid}").set({"uid": uid, "authTime": decoded["auth_time"], "expiresAt": time.time() + 43200})
+    db.reference(f"/sessions/{sid}").set({
+        "uid": uid,
+        "authTime": decoded.get("auth_time", int(time.time())),
+        "expiresAt": time.time() + 43200,
+        "authProvider": auth_provider
+    })
     return jsonify(success=True, csrfToken=session["csrf"])
 
 

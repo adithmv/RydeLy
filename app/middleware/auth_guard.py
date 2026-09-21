@@ -27,7 +27,15 @@ def identity():
         driver = db.reference(f"/drivers/{driver_id}").get()
         if driver and driver.get("uid") == uid and driver.get("isVerified") and not driver.get("isBanned"):
             role = "driver"
-    return {"uid": uid, "name": user.get("name", ""), "phone": user.get("phone", ""), "role": role, "driverId": driver_id if role == "driver" else None}
+    return {
+        "uid": uid,
+        "name": user.get("name", ""),
+        "phone": user.get("phone", ""),
+        "email": user.get("email", ""),
+        "role": role,
+        "driverId": driver_id if role == "driver" else None,
+        "authProvider": user.get("authProvider", "phone")
+    }
 
 
 def require_role(role=None):

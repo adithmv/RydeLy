@@ -6,6 +6,7 @@ interface AppContextType {
   isDriver: boolean;
   authLoading: boolean;
   user: Identity | null;
+  authProvider: "phone" | "email" | null;
   callCount: number;
   selectedTown: string;
   selectedStand: string;

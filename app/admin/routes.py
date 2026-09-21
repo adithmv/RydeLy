@@ -8,6 +8,7 @@ from app.services.firebase_service import (
 )
 from firebase_admin import db
 from app.services.call_service import get_all_call_logs
+import time
 @admin_bp.route("/drivers", methods=["GET"])
 @admin_required
 def list_drivers():
@@ -150,3 +151,85 @@ def post_announcement():
 def list_announcements():
     announcements = get_announcements()
     return jsonify(announcements), 200
+
+
+@admin_bp.route("/analytics/driver-earnings", methods=["GET"])
+@admin_required
+def driver_earnings_analytics():
+    """Returns average driver earnings analytics for admin dashboard."""
+    period = request.args.get("period", "allTime")
+    
+    rides_ref = db.reference("/rideOperations/rides")
+    all_rides = rides_ref.get() or {}
+    drivers_ref = db.reference("/drivers")
+    all_drivers = drivers_ref.get() or {}
+    
+    now_ts = int(time.time())
+    one_day_ago = now_ts - 86400
+    one_week_ago = now_ts - 604800
+    one_month_ago = now_ts - 2592000
+    
+    # Filter completed rides
+    completed_rides = [
+        r for r in all_rides.values()
+        if r.get("status") == "completed"
+    ]
+    
+    # Calculate time window
+    if period == "today":
+        cutoff = one_day_ago
+    elif period == "week":
+        cutoff = one_week_ago
+    elif period == "month":
+        cutoff = one_month_ago
+    else:
+        cutoff = 0
+    
+    if cutoff > 0:
+        completed_rides = [r for r in completed_rides if r.get("completedAt", 0) >= cutoff]
+    
+    # Aggregate earnings by driver
+    driver_earnings = {}
+    for ride in completed_rides:
+        driver_id = ride.get("driverId")
+        fare = ride.get("finalFare", ride.get("fare", 0))
+        if driver_id:
+            driver_earnings[driver_id] = driver_earnings.get(driver_id, 0) + fare
+    
+    # Count active drivers (verified, not banned)
+    active_drivers = [
+        d for d in all_drivers.values()
+        if d.get("isVerified") and not d.get("isBanned")
+    ]
+    active_driver_count = len(active_drivers)
+    
+    # Calculate totals
+    total_fares = sum(driver_earnings.values())
+    avg_earnings = total_fares / active_driver_count if active_driver_count > 0 else 0
+    
+    # Per-driver breakdown (top 10 / bottom 10)
+    driver_breakdown = []
+    for driver in active_drivers:
+        driver_id = driver.get("id")
+        earnings = driver_earnings.get(driver_id, 0)
+        driver_breakdown.append({
+            "driverId": driver_id,
+            "name": driver.get("name", ""),
+            "phone": driver.get("phone", ""),
+            "autoNumber": driver.get("autoNumber", "N/A"),
+            "town": driver.get("town", ""),
+            "earnings": round(earnings, 2),
+            "rideCount": sum(1 for r in completed_rides if r.get("driverId") == driver_id),
+        })
+    
+    driver_breakdown.sort(key=lambda x: x["earnings"], reverse=True)
+    
+    return jsonify({
+        "period": period,
+        "activeDriverCount": active_driver_count,
+        "totalFares": round(total_fares, 2),
+        "averageEarnings": round(avg_earnings, 2),
+        "topEarners": driver_breakdown[:10],
+        "lowestEarners": driver_breakdown[-10:] if len(driver_breakdown) > 10 else [],
+        "allDrivers": driver_breakdown,
+    }), 200

@@ -130,6 +130,13 @@ def test_full_persisted_lifecycle_and_analytics(system):
     assert accepted.status_code==200
     assert "startPin" not in accepted.json
     assert "pinHash" not in rider.get(f"/rides/{rid}").json
+    
+    # Get the PIN from rider's perspective after driver accepts
+    rider_ride = rider.get(f"/rides/{rid}").json
+    assert "startPin" in rider_ride
+    assert len(rider_ride["startPin"]) == 6
+    start_pin = rider_ride["startPin"]
+    
     assert post(rider,f"/rides/{rid}/status",{"status":"completed"}).status_code==403
     assert post(driver,f"/rides/{rid}/status",{"status":"completed"}).status_code==409
     assert post(driver,f"/rides/{rid}/status",{"status":"arriving"}).status_code==409
@@ -137,7 +144,7 @@ def test_full_persisted_lifecycle_and_analytics(system):
     assert post(rider,f"/rides/{rid}/location",position()).status_code==200
     assert post(driver,f"/rides/{rid}/status",{"status":"arriving"}).status_code==200
     assert post(driver,f"/rides/{rid}/status",{"status":"in_progress","pin":"wrong"}).status_code==403
-    assert post(driver,f"/rides/{rid}/status",{"status":"in_progress","pin":ride["startPin"]}).status_code==200
+    assert post(driver,f"/rides/{rid}/status",{"status":"in_progress","pin":start_pin}).status_code==200
     assert post(rider,f"/rides/{rid}/status",{"status":"cancelled"}).status_code==409
     assert post(driver,f"/rides/{rid}/location",position(DESTINATION)).status_code==200
     assert post(driver,f"/rides/{rid}/status",{"status":"completed"}).status_code==200
@@ -156,9 +163,16 @@ def test_full_persisted_lifecycle_and_analytics(system):
 def test_pin_attempt_limit(system):
     _,_,create=system
     rider=create("rider");driver=create("driver","driver");ride=book(rider);rid=ride["id"]
-    post(driver,"/rides/presence",{"online":True,**position()});post(driver,f"/rides/{rid}/accept");post(driver,f"/rides/{rid}/location",position());post(driver,f"/rides/{rid}/status",{"status":"arriving"})
+    post(driver,"/rides/presence",{"online":True,**position()});post(driver,f"/rides/{rid}/accept")
+    
+    # Get PIN from rider after acceptance
+    rider_ride = rider.get(f"/rides/{rid}").json
+    start_pin = rider_ride["startPin"]
+    assert len(start_pin) == 6
+    
+    post(driver,f"/rides/{rid}/location",position());post(driver,f"/rides/{rid}/status",{"status":"arriving"})
     for _ in range(5):assert post(driver,f"/rides/{rid}/status",{"status":"in_progress","pin":"wrong"}).status_code==403
-    assert post(driver,f"/rides/{rid}/status",{"status":"in_progress","pin":ride["startPin"]}).status_code==403
+    assert post(driver,f"/rides/{rid}/status",{"status":"in_progress","pin":start_pin}).status_code==403
 
 
 def test_stale_or_invalid_gps_rejected(system):
@@ -220,6 +234,13 @@ def test_admin_does_not_receive_participant_live_coordinates(system):
     rider = create("rider")
     admin = create("admin", "admin")
     ride = book(rider)
+    
+    # Driver accepts the ride first (required for rider location sharing)
+    driver = create("driver", "driver")
+    post(driver, "/rides/presence", {"online": True, **position()})
+    post(driver, f"/rides/{ride['id']}/accept")
+    
+    # Now rider can send location (ride status is "accepted")
     assert post(rider, f"/rides/{ride['id']}/location", position()).status_code == 200
     detail = admin.get(f"/rides/{ride['id']}")
     assert detail.status_code == 200

@@ -1,22 +1,32 @@
 from firebase_admin import db
 from datetime import datetime, timezone
+import time
 
 
-def get_or_create_user(uid, phone):
+def get_or_create_user(uid, identifier, auth_provider="phone"):
     """Checks if user exists in Firebase DB. If not, creates a new commuter record."""
     ref = db.reference(f"/users/{uid}")
     user = ref.get()
 
     if user is None:
         new_user = {
-            "phone": phone,
             "role": "commuter",
             "warningCount": 0,
             "isBanned": False,
-            "registeredAt": datetime.now(timezone.utc).isoformat()
+            "registeredAt": datetime.now(timezone.utc).isoformat(),
+            "authProvider": auth_provider
         }
+        if auth_provider == "phone":
+            new_user["phone"] = identifier
+        else:
+            new_user["email"] = identifier
         ref.set(new_user)
         return new_user
+
+    # Update authProvider if not set (for existing users)
+    if "authProvider" not in user:
+        ref.update({"authProvider": auth_provider})
+        user["authProvider"] = auth_provider
 
     return user
 
@@ -29,6 +39,8 @@ def register_driver(data):
     driver = {
         "name": data["name"],
         "phone": data["phone"],
+        "email": data.get("email"),
+        "emailVerified": data.get("emailVerified", False),
         "standId": data["standId"],
         "town": data["town"],
         "autoNumber": data.get("autoNumber", "N/A"),
@@ -201,6 +213,8 @@ def get_driver_profile(driver_id):
         "id": driver_id,
         "name": driver.get("name", ""),
         "phone": driver.get("phone", ""),
+        "email": driver.get("email", ""),
+        "emailVerified": driver.get("emailVerified", False),
         "stand": stand_name,
         "town": driver.get("town", ""),
         "autoNumber": driver.get("autoNumber", "N/A"),
@@ -208,6 +222,87 @@ def get_driver_profile(driver_id):
         "warningCount": driver.get("warningCount", 0),
         "callsThisWeek": calls_this_week,
         "status": status,
+    }
+
+
+def get_driver_earnings(driver_id):
+    """Returns earnings data for a specific driver (completed rides only)."""
+    rides_ref = db.reference("/rideOperations/rides")
+    all_rides = rides_ref.get() or {}
+    
+    # Filter completed rides for this driver
+    driver_rides = [
+        r for r in all_rides.values()
+        if r.get("driverId") == driver_id and r.get("status") == "completed"
+    ]
+    
+    if not driver_rides:
+        return {
+            "rides": [],
+            "summary": {
+                "today": 0,
+                "thisWeek": 0,
+                "thisMonth": 0,
+                "allTime": 0,
+                "rideCount": 0,
+                "averageRating": None,
+            }
+        }
+    
+    now_ts = int(time.time())
+    one_day_ago = now_ts - 86400
+    one_week_ago = now_ts - 604800
+    one_month_ago = now_ts - 2592000
+    
+    today_total = 0
+    week_total = 0
+    month_total = 0
+    all_time_total = 0
+    ratings = []
+    
+    for ride in driver_rides:
+        fare = ride.get("finalFare", ride.get("fare", 0))
+        completed_at = ride.get("completedAt", 0)
+        rating = ride.get("rating")
+        
+        all_time_total += fare
+        
+        if completed_at >= one_day_ago:
+            today_total += fare
+        if completed_at >= one_week_ago:
+            week_total += fare
+        if completed_at >= one_month_ago:
+            month_total += fare
+            
+        if rating:
+            ratings.append(rating)
+    
+    # Format ride history
+    ride_history = []
+    for ride in sorted(driver_rides, key=lambda r: r.get("completedAt", 0), reverse=True):
+        ride_history.append({
+            "rideId": ride.get("id"),
+            "fare": ride.get("finalFare", ride.get("fare", 0)),
+            "distanceKm": ride.get("distanceKm", 0),
+            "durationSeconds": ride.get("durationSeconds", 0),
+            "rating": ride.get("rating"),
+            "completedAt": ride.get("completedAt", 0),
+            "pickup": ride.get("pickup", {}),
+            "destination": ride.get("destination", {}),
+        })
+    
+    avg_rating = round(sum(ratings) / len(ratings), 1) if ratings else None
+    
+    return {
+        "rides": ride_history,
+        "summary": {
+            "today": round(today_total, 2),
+            "thisWeek": round(week_total, 2),
+            "thisMonth": round(month_total, 2),
+            "allTime": round(all_time_total, 2),
+            "rideCount": len(driver_rides),
+            "averageRating": avg_rating,
+        }
     }
 
 def get_all_drivers_admin():
@@ -241,6 +336,8 @@ def get_all_drivers_admin():
             "id": driver_id,
             "name": driver.get("name", ""),
             "phone": driver.get("phone", ""),
+            "email": driver.get("email", ""),
+            "emailVerified": driver.get("emailVerified", False),
             "town": driver.get("town", ""),
             "stand": stand_name,
             "autoNumber": driver.get("autoNumber", "N/A"),

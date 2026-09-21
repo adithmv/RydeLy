@@ -1,6 +1,6 @@
 import LiveAnalytics from "@/components/LiveAnalytics";
 import { postAnnouncement, getAnnouncements } from "@/lib/api";
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   adminGetDrivers,
   adminGetUsers,
@@ -10,16 +10,19 @@ import {
   adminWarn,
   adminRemove,
   adminResolveReport,
+  adminGetDriverEarnings,
   AdminDriver,
   AdminUser,
   AdminLog,
   AdminReport,
+  AdminDriverEarnings,
 } from "@/lib/api";
 import { motion } from "framer-motion";
 import {
   Users,
   Car,
   Phone,
+  Mail,
   AlertTriangle,
   CheckCircle,
   XCircle,
@@ -28,6 +31,7 @@ import {
   Loader2,
   RefreshCw,
   Megaphone,
+  Wallet,
 } from "lucide-react";
 import { useApp } from "@/context/app-state";
 import { useNavigate } from "react-router-dom";
@@ -106,6 +110,11 @@ export default function AdminDashboard() {
   const [logs, setLogs] = useState<AdminLog[]>([]);
   const [reports, setReports] = useState<AdminReport[]>([]);
 
+  // Driver earnings state
+  const [driverEarnings, setDriverEarnings] = useState<AdminDriverEarnings | null>(null);
+  const [earningsPeriod, setEarningsPeriod] = useState<"today" | "week" | "month" | "allTime">("allTime");
+  const [earningsLoading, setEarningsLoading] = useState(false);
+
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -140,6 +149,20 @@ export default function AdminDashboard() {
       setError("Could not load management data. Please refresh.");
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  // ── Fetch driver earnings ───────────────────────────────
+  const fetchDriverEarnings = useCallback(async (period: "today" | "week" | "month" | "allTime") => {
+    setEarningsLoading(true);
+    try {
+      const data = await adminGetDriverEarnings(period);
+      setDriverEarnings(data);
+      setEarningsPeriod(period);
+    } catch {
+      setError("Could not load driver earnings.");
+    } finally {
+      setEarningsLoading(false);
     }
   }, []);
 
@@ -293,7 +316,7 @@ export default function AdminDashboard() {
         )}
         {/* Stats */}
         {!loading && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             <StatCard
               icon={<Car size={15} className="text-primary" />}
               label="Total Drivers"
@@ -315,6 +338,12 @@ export default function AdminDashboard() {
               icon={<AlertTriangle size={15} className="text-primary" />}
               label="Open Reports"
               value={openReports.length}
+            />
+            <StatCard
+              icon={<Wallet size={15} className="text-primary" />}
+              label="Avg Driver Earnings"
+              value={driverEarnings ? `₹${driverEarnings.averageEarnings.toLocaleString("en-IN", { maximumFractionDigits: 0 })}` : "—"}
+              sub={driverEarnings ? `${driverEarnings.activeDriverCount} active drivers` : "loading…"}
             />
           </div>
         )}
@@ -345,7 +374,104 @@ export default function AdminDashboard() {
               ))}
             </div>
 
-            {tab === "rides" && <LiveAnalytics />}
+            {/* ── RIDES TAB ── */}
+            {tab === "rides" && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                <div className="flex items-center gap-4 mb-4">
+                  <h2 className="font-heading text-lg font-bold">Ride Analytics</h2>
+                  <div className="ml-auto flex items-center gap-2">
+                    <span className="font-body text-xs text-muted-foreground">Earnings Period:</span>
+                    <select
+                      value={earningsPeriod}
+                      onChange={(e) => fetchDriverEarnings(e.target.value as "today" | "week" | "month" | "allTime")}
+                      disabled={earningsLoading}
+                      className="px-3 py-1.5 bg-cream-dark border-2 border-border-warm rounded-lg font-body text-sm focus:border-primary outline-none transition-colors"
+                    >
+                      <option value="today">Today</option>
+                      <option value="week">This Week</option>
+                      <option value="month">This Month</option>
+                      <option value="allTime">All Time</option>
+                    </select>
+                    {earningsLoading && <Loader2 size={14} className="animate-spin text-primary" />}
+                  </div>
+                </div>
+                <div className="space-y-5">
+                  <LiveAnalytics />
+                  
+                  {/* Driver Earnings Breakdown */}
+                  {driverEarnings && (
+                    <div className="demo-card">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="font-heading text-base font-bold">Average Driver Earnings — {driverEarnings.period.charAt(0).toUpperCase() + driverEarnings.period.slice(1)}</h3>
+                        <div className="flex items-center gap-4 text-sm">
+                          <span className="text-green-600 font-semibold">Active Drivers: {driverEarnings.activeDriverCount}</span>
+                          <span className="text-primary font-semibold">Total Fares: ₹{driverEarnings.totalFares.toLocaleString("en-IN")}</span>
+                          <span className="text-orange-600 font-semibold">Avg/Driver: ₹{driverEarnings.averageEarnings.toLocaleString("en-IN")}</span>
+                        </div>
+                      
+                      {/* Top Earners */}
+                      <div className="mb-6">
+                        <h4 className="font-body text-xs text-muted-foreground uppercase tracking-wide mb-3">Top 10 Earners</h4>
+                        <div className="space-y-2">
+                          {driverEarnings.topEarners.length > 0 ? (
+                            driverEarnings.topEarners.map((d, i) => (
+                              <div key={d.driverId} className="flex items-center gap-3 p-2 bg-cream-dark rounded-lg">
+                                <span className="w-6 text-center font-bold text-muted-foreground">{i + 1}</span>
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-body text-sm font-medium">{d.name}</p>
+                                  <p className="font-body text-xs text-muted-foreground flex gap-2 flex-wrap">
+                                    <span>{d.autoNumber}</span>
+                                    <span>·</span>
+                                    <span>{d.town}</span>
+                                    <span>·</span>
+                                    <span>{d.rideCount} rides</span>
+                                  </p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="font-heading text-base font-bold text-green-600">₹{d.earnings.toLocaleString("en-IN")}</p>
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <p className="font-body text-sm text-muted-foreground">No earnings data</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Lowest Earners */}
+                      <div>
+                        <h4 className="font-body text-xs text-muted-foreground uppercase tracking-wide mb-3">Lowest Earners (Need Attention)</h4>
+                        <div className="space-y-2">
+                          {driverEarnings.lowestEarners.length > 0 ? (
+                            driverEarnings.lowestEarners.map((d, i) => (
+                              <div key={d.driverId} className="flex items-center gap-3 p-2 bg-cream-dark rounded-lg">
+                                <span className="w-6 text-center font-bold text-muted-foreground">{driverEarnings.allDrivers.length - i}</span>
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-body text-sm font-medium">{d.name}</p>
+                                  <p className="font-body text-xs text-muted-foreground flex gap-2 flex-wrap">
+                                    <span>{d.autoNumber}</span>
+                                    <span>·</span>
+                                    <span>{d.town}</span>
+                                    <span>·</span>
+                                    <span>{d.rideCount} rides</span>
+                                  </p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="font-heading text-base font-bold text-red-600">₹{d.earnings.toLocaleString("en-IN")}</p>
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <p className="font-body text-sm text-muted-foreground">No earnings data</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                </div>
+              </motion.div>
+            )}
             {/* ── DRIVERS TAB ── */}
             {tab === "drivers" && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
@@ -391,8 +517,34 @@ export default function AdminDashboard() {
                                 </span>
                               )}
                             </div>
-                            <p className="font-body text-xs text-muted-foreground mt-0.5">
-                              {driver.phone} · {driver.autoNumber}
+                            {/* Primary contact: Email for new drivers, Phone for legacy */}
+                            <p className="font-body text-xs text-muted-foreground mt-0.5 flex items-center gap-2 flex-wrap">
+                              {driver.email ? (
+                                <React.Fragment>
+                                  <Mail size={10} className="text-primary" />
+                                  <span className="font-medium">{driver.email}</span>
+                                  {driver.emailVerified && (
+                                    <span className="text-[9px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-body">
+                                      Verified
+                                    </span>
+                                  )}
+                                  {driver.phone && (
+                                    <React.Fragment>
+                                      <span className="text-muted-foreground">·</span>
+                                      <Phone size={10} className="text-muted-foreground" />
+                                      <span>{driver.phone}</span>
+                                    </React.Fragment>
+                                  )}
+                                </React.Fragment>
+                              ) : (
+                                <React.Fragment>
+                                  <Phone size={10} className="text-primary" />
+                                  <span className="font-medium">{driver.phone || "—"}</span>
+                                </React.Fragment>
+                              )}
+                              <span className="text-muted-foreground">·</span>
+                              <Car size={10} className="text-primary" />
+                              <span className="font-mono font-medium">{driver.autoNumber || "—"}</span>
                             </p>
                             <p className="font-body text-xs text-muted-foreground">
                               {driver.stand}, {driver.town}

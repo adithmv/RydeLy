@@ -79,6 +79,8 @@ export async function registerDriver(data: {
   town: string;
   standId: string;
   autoNumber: string;
+  email?: string;
+  emailVerified?: boolean;
 }) {
   return request<{ success: boolean }>("/driver/register", {
     method: "POST",
@@ -93,11 +95,90 @@ export async function reportCommuter(commuterPhone: string, reason: string) {
   });
 }
 
+// ── DRIVER EARNINGS ──────────────────────────────────────────
+export interface DriverEarnings {
+  rides: DriverEarningRide[];
+  summary: {
+    today: number;
+    thisWeek: number;
+    thisMonth: number;
+    allTime: number;
+    rideCount: number;
+    averageRating: number | null;
+  };
+}
+
+export interface DriverEarningRide {
+  rideId: string;
+  fare: number;
+  distanceKm: number;
+  durationSeconds: number;
+  rating: number | null;
+  completedAt: number;
+  pickup: { lat: number; lng: number; label: string };
+  destination: { lat: number; lng: number; label: string };
+}
+
+export async function getDriverEarnings() {
+  return request<DriverEarnings>("/driver/earnings");
+}
+
+// ── SHIFT MANAGEMENT ─────────────────────────────────────────
+export interface Shift {
+  startedAt: number;
+  scheduledDurationMinutes: number;
+  shiftEndsAt: number;
+  extensions: { addedMinutes: number; addedAt: number }[];
+  status: "active" | "ended" | "expired";
+}
+
+export interface ShiftStatus {
+  hasActiveShift: boolean;
+  shift: (Shift & {
+    timeRemainingSeconds: number;
+    showExtendPrompt: boolean;
+    extensionsUsed: number;
+    extensionsRemaining: number;
+  }) | null;
+}
+
+export async function startShift(durationMinutes: number) {
+  return request<{ success: boolean; shift: Shift }>("/driver/shift/start", {
+    method: "POST",
+    body: JSON.stringify({ durationMinutes }),
+  });
+}
+
+export async function extendShift(additionalMinutes: number) {
+  return request<{
+    success: boolean;
+    shiftEndsAt: number;
+    extensions: { addedMinutes: number; addedAt: number }[];
+    extensionsUsed: number;
+    extensionsRemaining: number;
+  }>("/driver/shift/extend", {
+    method: "POST",
+    body: JSON.stringify({ additionalMinutes }),
+  });
+}
+
+export async function stopShift() {
+  return request<{ success: boolean; message: string }>("/driver/shift/stop", {
+    method: "POST",
+  });
+}
+
+export async function getShiftStatus() {
+  return request<ShiftStatus>("/driver/shift/status");
+}
+
 // ── ADMIN TYPES ───────────────────────────────────────────
 export interface AdminDriver {
   id: string;
   name: string;
   phone: string;
+  email?: string;
+  emailVerified?: boolean;
   town: string;
   stand: string;
   autoNumber: string;
@@ -174,6 +255,32 @@ export async function adminResolveReport(reportId: string) {
   return request<{ success: boolean }>(`/admin/reports/${reportId}/resolve`, {
     method: "PATCH",
   });
+}
+
+
+// ── ADMIN DRIVER EARNINGS ANALYTICS ─────────────────────────
+export interface AdminDriverEarnings {
+  period: string;
+  activeDriverCount: number;
+  totalFares: number;
+  averageEarnings: number;
+  topEarners: AdminDriverEarning[];
+  lowestEarners: AdminDriverEarning[];
+  allDrivers: AdminDriverEarning[];
+}
+
+export interface AdminDriverEarning {
+  driverId: string;
+  name: string;
+  phone: string;
+  autoNumber: string;
+  town: string;
+  earnings: number;
+  rideCount: number;
+}
+
+export async function adminGetDriverEarnings(period: "today" | "week" | "month" | "allTime" = "allTime") {
+  return request<AdminDriverEarnings>(`/admin/analytics/driver-earnings?period=${period}`);
 }
 
 

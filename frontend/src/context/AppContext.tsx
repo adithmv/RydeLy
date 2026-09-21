@@ -40,6 +40,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     cache.clear();
     setCallCount(0);
   };
+  const authProvider = user?.authProvider ?? null;
   return (
     <AppContext.Provider
       value={{
@@ -48,6 +49,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         isLoggedIn: !!user,
         isAdmin: user?.role === "admin",
         isDriver: user?.role === "driver",
+        authProvider,
         login,
         loginAsAdmin: login,
         logout,
