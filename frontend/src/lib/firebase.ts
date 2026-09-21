@@ -48,6 +48,34 @@ export async function signOutDriver() {
   await signOut(auth);
 }
 
+// Rider Email/Password Auth
+export async function signUpRiderWithEmail(email: string, password: string) {
+  const auth = getFirebaseAuth();
+  const result = await createUserWithEmailAndPassword(auth, email, password);
+  await sendEmailVerification(result.user);
+  return result.user;
+}
+
+export async function signInRiderWithEmail(email: string, password: string) {
+  const auth = getFirebaseAuth();
+  const result = await signInWithEmailAndPassword(auth, email, password);
+  return result.user;
+}
+
+export async function sendRiderEmailVerification(user: any) {
+  await sendEmailVerification(user);
+}
+
+export async function sendRiderPasswordReset(email: string) {
+  const auth = getFirebaseAuth();
+  await sendPasswordResetEmail(auth, email);
+}
+
+export async function signOutRider() {
+  const auth = getFirebaseAuth();
+  await signOut(auth);
+}
+
 // FCM Token Management
 let messagingInstance: any = null;
 
