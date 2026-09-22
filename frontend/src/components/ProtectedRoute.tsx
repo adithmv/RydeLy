@@ -22,7 +22,7 @@ export default function ProtectedRoute({
 
   // Already logged in trying to visit /login or /register
   if (redirectIfAuth && isLoggedIn) {
-    if (isAdmin) return <Navigate to="/admin" replace />;
+    if (isAdmin) return <Navigate to="/admin/dashboard" replace />;
     if (isDriver) return <Navigate to="/driver/portal" replace />;
     return <Navigate to="/home" replace />;
   }

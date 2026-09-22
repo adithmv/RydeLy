@@ -107,16 +107,16 @@ export default function LoginPage() {
         });
       await signOut(getFirebaseAuth());
       const user = await refreshSession();
+      console.log("[PhoneLogin] Backend returned role:", user?.role, "full user:", user);
       if (!user)
         throw new Error("Your session could not be established. Please retry.");
-      navigate(
-        user.role === "admin"
-          ? "/admin"
-          : user.role === "driver"
-            ? "/driver/portal"
-            : "/home",
-        { replace: true },
-      );
+      const targetRoute = user.role === "admin"
+        ? "/admin/dashboard"
+        : user.role === "driver"
+          ? "/driver/portal"
+          : "/home";
+      console.log("[PhoneLogin] Navigating to:", targetRoute);
+      navigate(targetRoute, { replace: true });
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "The code could not be verified",
@@ -150,16 +150,16 @@ export default function LoginPage() {
       await loginToken(await user.getIdToken());
       await signOutRider();
       const loggedInUser = await refreshSession();
+      console.log("[RiderEmailLogin] Backend returned role:", loggedInUser?.role, "full user:", loggedInUser);
       if (!loggedInUser)
         throw new Error("Your session could not be established. Please retry.");
-      navigate(
-        loggedInUser.role === "admin"
-          ? "/admin"
-          : loggedInUser.role === "driver"
-            ? "/driver/portal"
-            : "/home",
-        { replace: true },
-      );
+      const targetRoute = loggedInUser.role === "admin"
+        ? "/admin/dashboard"
+        : loggedInUser.role === "driver"
+          ? "/driver/portal"
+          : "/home";
+      console.log("[RiderEmailLogin] Navigating to:", targetRoute);
+      navigate(targetRoute, { replace: true });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Sign in failed";
       if (message.includes("auth/user-not-found") || message.includes("auth/wrong-password") || message.includes("auth/invalid-credential")) {
@@ -177,7 +177,7 @@ export default function LoginPage() {
     setBusy(true);
     setError("");
     try {
-      const user = await signUpRiderWithEmail(riderEmail.trim(), riderPassword);
+      await signUpRiderWithEmail(riderEmail.trim(), riderPassword);
       setError("Verification email sent. Please check your inbox and verify your email before signing in.");
       setRiderStep("email_login");
     } catch (err: unknown) {
@@ -226,16 +226,17 @@ export default function LoginPage() {
       await loginToken(await user.getIdToken());
       await signOutDriver();
       const loggedInUser = await refreshSession();
+      // Debug: log the role returned from backend
+      console.log("[DriverLogin] Backend returned role:", loggedInUser?.role, "full user:", loggedInUser);
       if (!loggedInUser)
         throw new Error("Your session could not be established. Please retry.");
-      navigate(
-        loggedInUser.role === "admin"
-          ? "/admin"
-          : loggedInUser.role === "driver"
-            ? "/driver/portal"
-            : "/home",
-        { replace: true },
-      );
+      const targetRoute = loggedInUser.role === "admin"
+        ? "/admin/dashboard"
+        : loggedInUser.role === "driver"
+          ? "/driver/portal"
+          : "/home";
+      console.log("[DriverLogin] Navigating to:", targetRoute);
+      navigate(targetRoute, { replace: true });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Sign in failed";
       if (message.includes("auth/user-not-found") || message.includes("auth/wrong-password") || message.includes("auth/invalid-credential")) {

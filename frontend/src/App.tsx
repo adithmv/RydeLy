@@ -10,6 +10,7 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 
 import LandingPage from "@/pages/LandingPage";
 import LoginPage from "@/pages/LoginPage";
+import AdminLoginPage from "@/pages/AdminLoginPage";
 import HomePage from "@/pages/HomePage";
 import DriverListingPage from "@/pages/DriverListingPage";
 import DriverRegistrationPage from "@/pages/DriverRegistrationPage";
@@ -28,6 +29,7 @@ function AppLayout() {
   const { pathname } = useLocation();
   const hideFooter =
     pathname === "/admin" ||
+    pathname === "/admin/dashboard" ||
     pathname === "/home" ||
     pathname === "/driver/portal";
 
@@ -50,6 +52,16 @@ function AppLayout() {
         <Route
           path="/register"
           element={<DriverRegistrationPage />}
+        />
+
+        {/* Admin login — hidden route, no nav links */}
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute redirectIfAuth>
+              <AdminLoginPage />
+            </ProtectedRoute>
+          }
         />
 
         {/* Commuter routes — must be logged in */}
@@ -86,9 +98,9 @@ function AppLayout() {
             </ProtectedRoute>
           }
         />
-        {/* Admin routes — must be logged in AND admin */}
+        {/* Admin dashboard — must be logged in AND admin */}
         <Route
-          path="/admin"
+          path="/admin/dashboard"
           element={
             <ProtectedRoute requireAuth requireAdmin>
               <Suspense

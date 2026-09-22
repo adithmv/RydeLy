@@ -164,6 +164,18 @@ def get_driver_by_phone(phone):
             return {"id": k, **v}
     return None
 
+def get_driver_by_email(email):
+    """Find a driver record by email address."""
+    ref = db.reference("/drivers")
+    all_drivers = ref.get()
+    if not all_drivers:
+        return None
+    email_lower = email.lower().strip()
+    for k, v in all_drivers.items():
+        if v.get("email", "").lower().strip() == email_lower:
+            return {"id": k, **v}
+    return None
+
 def get_announcements():
     """Get the current active announcement."""
     data = db.reference("/announcement").get()

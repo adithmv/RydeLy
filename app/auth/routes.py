@@ -6,7 +6,7 @@ from app.auth import auth_bp
 from app.extensions import limiter
 from app.security import body, text
 from app.services.otp_service import verify_firebase_token
-from app.services.firebase_service import get_or_create_user, get_driver_by_phone
+from app.services.firebase_service import get_or_create_user, get_driver_by_phone, get_driver_by_email
 from app.middleware.auth_guard import commuter_required
 
 
@@ -53,6 +53,12 @@ def verify_token():
     # Link existing driver registration by phone if this is a phone auth user
     if auth_provider == "phone" and phone:
         driver = get_driver_by_phone(phone)
+        if driver and not driver.get("uid"):
+            db.reference(f"/drivers/{driver['id']}").update({"uid": uid})
+            db.reference(f"/users/{uid}").update({"driverId": driver["id"]})
+    # Link existing driver registration by email if this is an email auth user
+    elif auth_provider == "email" and email:
+        driver = get_driver_by_email(email)
         if driver and not driver.get("uid"):
             db.reference(f"/drivers/{driver['id']}").update({"uid": uid})
             db.reference(f"/users/{uid}").update({"driverId": driver["id"]})
