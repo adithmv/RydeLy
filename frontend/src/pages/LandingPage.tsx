@@ -66,7 +66,7 @@ function MarqueeStrip() {
 
 function HowItWorks() {
   const steps = [
-    { num: '01', icon: <LogIn size={28} className="text-primary" />, title: 'Login with OTP', malayalam: 'OTP ലോഗിൻ', desc: 'Enter your phone number and verify with a one-time password. Quick and secure.' },
+    { num: '01', icon: <LogIn size={28} className="text-primary" />, title: 'Login (OTP or Email)', malayalam: 'OTP / ഇമെയിൽ ലോഗിൻ', desc: 'Sign in with phone OTP or email & password. Quick and secure.' },
     { num: '02', icon: <MapPin size={28} className="text-primary" />, title: 'Pick Your Stand', malayalam: 'സ്റ്റാൻഡ് തിരഞ്ഞെടുക്കുക', desc: 'Select your town and auto stand to find nearby verified drivers.' },
     { num: '03', icon: <Phone size={28} className="text-primary" />, title: 'Call Directly', malayalam: 'നേരിട്ട് വിളിക്കുക', desc: 'Call any verified driver with one tap. The call is logged for your safety.' },
   ];
@@ -105,7 +105,7 @@ function SafetySection() {
   const cards = [
     { icon: <ShieldCheck size={28} className="text-yellow" />, title: 'Admin-Verified Drivers', desc: 'Every driver is manually verified before appearing in the directory.' },
     { icon: <ClipboardList size={28} className="text-yellow" />, title: 'Every Call is Logged', desc: 'All calls are recorded with timestamps for your safety and accountability.' },
-    { icon: <KeyRound size={28} className="text-yellow" />, title: 'OTP Authentication', desc: 'Phone-based OTP login ensures only real users access the platform.' },
+    { icon: <KeyRound size={28} className="text-yellow" />, title: 'Dual Auth: OTP & Email', desc: 'Sign in with phone OTP or email & password — both secure, your choice.' },
     { icon: <TriangleAlert size={28} className="text-yellow" />, title: 'Report System', desc: 'Report any driver after a call. Three strikes and the driver is banned.' },
   ];
   return (
