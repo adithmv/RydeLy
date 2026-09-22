@@ -1,14 +1,15 @@
 import { useApp } from "@/context/app-state";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { registerDriver } from "@/lib/api";
 import { motion, AnimatePresence } from "framer-motion";
-import { CheckCircle, ChevronDown, Loader2, Car, Mail, Lock, Eye, EyeOff, AlertCircle, AlertTriangle, ArrowRight, ArrowLeft, Phone, Shield } from "lucide-react";
+import { CheckCircle, ChevronDown, Loader2, Car, Mail, Lock, Eye, EyeOff, AlertCircle, AlertTriangle, ArrowRight, ArrowLeft, Phone, Shield, MapPin } from "lucide-react";
 import { signUpDriverWithEmail, signOutDriver } from "@/lib/firebase";
 import { request } from "@/lib/http";
 import { sendEmailVerification } from "firebase/auth";
 import { loginToken } from "@/lib/live";
+import { ALL_TOWNS, getStandsByTown, type Stand } from "@/data/index";
 
 export default function DriverRegistrationPage() {
 
@@ -34,6 +35,8 @@ export default function DriverRegistrationPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [phone, setPhone] = useState("");
   const [autoNumber, setAutoNumber] = useState("");
+  const [town, setTown] = useState("");
+  const [standId, setStandId] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
   // Pre-fill phone for logged-in riders
@@ -45,6 +48,10 @@ export default function DriverRegistrationPage() {
       }
     }
   }, [user, isDriver, isAdmin, phone]);
+
+  // Derived lists for dropdowns
+  const towns = useMemo(() => ALL_TOWNS, []);
+  const stands = useMemo(() => getStandsByTown(town), [town]);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -66,6 +73,8 @@ export default function DriverRegistrationPage() {
     password === confirmPassword &&
     phone.length === 10 && 
     autoNumber.trim().length >= 2 && 
+    town.length >= 2 && 
+    standId.length >= 2 && 
     !loading;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -125,8 +134,8 @@ export default function DriverRegistrationPage() {
         await registerDriver({ 
           name: name.trim(), 
           phone, 
-          town: "",  // Not collected in new form
-          standId: "",  // Not collected in new form
+          town,  // Now collected from form
+          standId,  // Now collected from form
           autoNumber: autoNumber.trim(),
           email: email.trim().toLowerCase(),
           emailVerified: true
@@ -413,6 +422,45 @@ export default function DriverRegistrationPage() {
                       required
                     />
                     <p className="font-body text-xs text-muted-foreground mt-1">Auto-rickshaw registration/number plate</p>
+                  </div>
+
+                  {/* Town - Required */}
+                  <div>
+                    <label className="font-body text-sm font-medium text-foreground block mb-2 flex items-center gap-2">
+                      <MapPin size={16} className="text-primary" />
+                      Town <span className="text-xs text-primary font-medium">*</span>
+                    </label>
+                    <select
+                      value={town}
+                      onChange={e => { setTown(e.target.value); setStandId(""); }}
+                      className="w-full px-4 py-3 bg-cream-dark border-2 border-border-warm rounded-xl font-body text-sm focus:border-primary outline-none transition-colors"
+                      required
+                    >
+                      <option value="">Select your town</option>
+                      {towns.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                    <p className="font-body text-xs text-muted-foreground mt-1">Your service town (e.g. Kannur, Kasaragod, Payyanur)</p>
+                  </div>
+
+                  {/* Auto Stand - Required */}
+                  <div>
+                    <label className="font-body text-sm font-medium text-foreground block mb-2 flex items-center gap-2">
+                      <MapPin size={16} className="text-primary" />
+                      Auto Stand <span className="text-xs text-primary font-medium">*</span>
+                    </label>
+                    <select
+                      value={standId}
+                      onChange={e => setStandId(e.target.value)}
+                      className="w-full px-4 py-3 bg-cream-dark border-2 border-border-warm rounded-xl font-body text-sm focus:border-primary outline-none transition-colors"
+                      required
+                      disabled={!town}
+                    >
+                      <option value="">Select your auto stand</option>
+                      {stands.map((stand: Stand) => <option key={stand.id} value={stand.id}>{stand.name}</option>)}
+                    </select>
+                    <p className="font-body text-xs text-muted-foreground mt-1">
+                      {town ? `Available stands in ${town}` : "Select a town first to see available stands"}
+                    </p>
                   </div>
 
                   {/* Error */}
