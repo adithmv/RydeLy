@@ -40,5 +40,6 @@ class DevelopmentConfig(Config):
 
 class ProductionConfig(Config):
     DEBUG = False
+    SESSION_COOKIE_SAMESITE = "None"  # Cross-origin requires SameSite=None with Secure=True
 
 config = {"development": DevelopmentConfig, "production": ProductionConfig}

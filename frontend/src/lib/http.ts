@@ -1,4 +1,10 @@
-const BASE = import.meta.env.VITE_API_URL || "";
+const BASE = import.meta.env.VITE_API_URL;
+if (!BASE) {
+  throw new Error(
+    "VITE_API_URL environment variable is not set. " +
+    "Set it to your backend URL (e.g., https://rydely-yd8l.onrender.com) in your deployment environment."
+  );
+}
 let csrfToken: string | undefined;
 let csrfPromise: Promise<string> | undefined;
 export class ApiError extends Error {

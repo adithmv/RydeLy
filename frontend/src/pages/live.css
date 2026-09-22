@@ -1070,6 +1070,7 @@ body:has(.live-login)::before {
   flex: 1;
   overflow-y: auto;
   padding: 16px 20px;
+  max-height: 45vh;
 }
 
 .empty-state {
