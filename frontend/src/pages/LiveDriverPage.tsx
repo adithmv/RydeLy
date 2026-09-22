@@ -10,18 +10,19 @@ import {
   type ShiftStatus,
 } from "@/lib/api";
 import {
-  acceptOffer,
-  changeStatus,
-  declineOffer,
-  getOffers,
-  getRides,
   getRiderLocation,
   isActive,
+  getRides,
+  getOffers,
+  acceptOffer,
+  declineOffer,
+  changeStatus,
   sendPosition,
   setPresence,
   statusLabel,
   type RideStatus,
 } from "@/lib/live";
+import { getQueryArray, findQueryItem } from "@/lib/queryUtils";
 import { currentLocation, useLiveLocation } from "@/lib/useLiveLocation";
 import LiveMap from "@/components/LiveMap";
 import { 
@@ -84,7 +85,7 @@ export default function LiveDriverPage() {
     refetchInterval: 3000,
   });
 
-  const ride = rides.data?.find(isActive);
+  const ride = findQueryItem(rides, isActive);
   const rideId = ride?.id;
 
   const shiftQuery = useQuery({
@@ -491,7 +492,7 @@ export default function LiveDriverPage() {
             Enable location sharing to receive ride requests.
           </p>
         )}
-        {offers.data?.map((offer) => (
+        {getQueryArray(offers).map((offer) => (
           <section className="driver-offer" key={offer.id}>
             <small>
               {offer.service === "comfort" ? "Ryde Comfort" : "Ryde Auto"}
@@ -524,12 +525,12 @@ export default function LiveDriverPage() {
             </button>
           </section>
         ))}
-        {hasActiveShift && sharing && offers.data?.length === 0 && (
+        {hasActiveShift && sharing && getQueryArray(offers).length === 0 && (
           <p>No nearby requests yet. New offers appear automatically.</p>
         )}
         <h2 className="mt-6">Recent trips</h2>
-        {rides.data
-          ?.filter((r) => !isActive(r))
+        {getQueryArray(rides)
+          .filter((r) => !isActive(r))
           .slice(0, 5)
           .map((r) => (
             <p className="driver-history" key={r.id}>

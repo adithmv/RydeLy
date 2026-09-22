@@ -30,6 +30,7 @@ import {
   searchPlaces,
   type Place,
 } from "@/lib/live";
+import { findQueryItem, getQueryArray } from "@/lib/queryUtils";
 import { currentLocation, useLiveLocation } from "@/lib/useLiveLocation";
 import LiveMap from "@/components/LiveMap";
 import PlaceSearch from "@/components/PlaceSearch";
@@ -67,7 +68,7 @@ export default function LiveRiderPage() {
     } | null>(null),
     [retrying, setRetrying] = useState(false),
     [chosenFare, setChosenFare] = useState<number | null>(null);
-  const ride = rides.data?.find((r) => !dismissed.includes(r.id));
+  const ride = findQueryItem(rides, (r) => !dismissed.includes(r.id));
   const rideActive = !!ride && isActive(ride);
   
   // Rider location sharing: only after driver accepts (accepted, arriving)

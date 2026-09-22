@@ -64,7 +64,7 @@ def system(monkeypatch):
     database = MemoryDatabase()
     monkeypatch.setattr(db, "reference", database.reference)
     monkeypatch.setattr(auth,"get_user",lambda uid:SimpleNamespace(disabled=False,tokens_valid_after_timestamp=0))
-    app = create_app(overrides={"TESTING":True,"SECRET_KEY":"test-secret-not-for-deployment","RATELIMIT_ENABLED":False,"ORS_API_KEY":"test-key"})
+    app = create_app(overrides={"TESTING":True,"SECRET_KEY":"test-secret-not-for-deployment","RATELIMIT_ENABLED":False,"ORS_API_KEY":"test-key","FRONTEND_URL":"http://localhost:5173,http://127.0.0.1:5173","ALLOWED_ORIGINS":["http://localhost:5173","http://127.0.0.1:5173"]})
     from app.services import routing
     monkeypatch.setattr(routing,"provider",lambda *a,**k:{"features":[{"properties":{"summary":{"distance":4500,"duration":720}},"geometry":{"coordinates":[[75.3704,11.8745],[75.397,11.89]]}}]})
     def client(uid, role="commuter"):

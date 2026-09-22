@@ -6,6 +6,7 @@ import { AppProvider } from "@/context/AppContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import ErrorBoundary from "@/components/ErrorBoundary";
 
 import LandingPage from "@/pages/LandingPage";
 import LoginPage from "@/pages/LoginPage";
@@ -138,7 +139,9 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <AppProvider>
         <BrowserRouter>
-          <AppLayout />
+          <ErrorBoundary>
+            <AppLayout />
+          </ErrorBoundary>
         </BrowserRouter>
       </AppProvider>
     </QueryClientProvider>
