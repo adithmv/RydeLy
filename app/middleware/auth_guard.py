@@ -23,7 +23,7 @@ def identity():
         return None
     membership = db.reference(f"/admins/{uid}").get()
     role, driver_id = "commuter", user.get("driverId")
-    if membership is True or (isinstance(membership, dict) and membership.get("enabled") is True):
+    if user.get("role") == "admin" or membership is True or (isinstance(membership, dict) and membership.get("enabled") is True):
         role = "admin"
     elif driver_id:
         driver = db.reference(f"/drivers/{driver_id}").get()
