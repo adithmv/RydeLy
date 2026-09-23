@@ -954,7 +954,8 @@ body:has(.live-login)::before {
   position: fixed;
   inset: 0;
   z-index: 200;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(2px);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -967,17 +968,17 @@ body:has(.live-login)::before {
   to { opacity: 1; }
 }
 
-.stands-list-modal > div {
+.stands-list-dialog {
   background: #fff;
   border-radius: 16px;
   width: 100%;
   max-width: 480px;
-  max-height: 90vh;
+  max-height: 85vh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   animation: slideUp 0.3s ease;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
 }
 
 @keyframes slideUp {
@@ -989,6 +990,20 @@ body:has(.live-login)::before {
     opacity: 1; 
     transform: translateY(0); 
   }
+}
+
+.clear-search-btn {
+  background: none;
+  border: none;
+  font-size: 18px;
+  color: #8a9480;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.clear-search-btn:hover {
+  color: #263d31;
 }
 
 .stands-list-header {
@@ -1175,10 +1190,11 @@ body:has(.live-login)::before {
 @media (max-width: 480px) {
   .stands-list-modal {
     padding: 0;
+    align-items: flex-end;
   }
-  .stands-list-modal > div {
-    max-height: 100vh;
-    border-radius: 16px 16px 0 0;
+  .stands-list-dialog {
+    max-height: 90vh;
+    border-radius: 20px 20px 0 0;
   }
   .filter-chips {
     flex-wrap: wrap;

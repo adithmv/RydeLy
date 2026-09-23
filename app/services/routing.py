@@ -18,10 +18,11 @@ def distance_km(a, b):
 
 
 def _osrm_route(pickup_coords, destination_coords):
-    """Fetch live driving route from free public OpenStreetMap OSRM service."""
+    """Fetch live driving route from free public OpenStreetMap OSRM service with road snapping."""
     lng1, lat1 = pickup_coords
     lng2, lat2 = destination_coords
-    url = f"https://router.project-osrm.org/route/v1/driving/{lng1},{lat1};{lng2},{lat2}?overview=full&geometries=geojson&steps=true"
+    # radiuses=1000;1000 snaps off-road or GPS points up to 1km to the closest drivable road
+    url = f"https://router.project-osrm.org/route/v1/driving/{lng1},{lat1};{lng2},{lat2}?overview=full&geometries=geojson&steps=true&radiuses=1000;1000"
     req = Request(url, headers={"User-Agent": "RydeLy/1.0 (Kerala Auto Mobility; contact@rydely.in)", "Accept": "application/json"})
     with urlopen(req, timeout=10) as response:
         res = json.load(response)
@@ -62,6 +63,25 @@ def _osrm_route(pickup_coords, destination_coords):
             }
         ]
     }
+
+
+def _nominatim_reverse(lat, lng):
+    """Reverse geocode coordinates to a clean human-readable address."""
+    url = f"https://nominatim.openstreetmap.org/reverse?lat={lat}&lon={lng}&format=json"
+    req = Request(url, headers={"User-Agent": "RydeLy/1.0 (Kerala Auto Mobility; contact@rydely.in)", "Accept": "application/json"})
+    with urlopen(req, timeout=8) as response:
+        item = json.load(response)
+    label = item.get("display_name")
+    if label:
+        return {
+            "features": [
+                {
+                    "geometry": {"coordinates": [lng, lat]},
+                    "properties": {"label": label}
+                }
+            ]
+        }
+    return {"features": []}
 
 
 def _nominatim_geocode(query):
@@ -155,11 +175,25 @@ def provider(path, data=None, params=None):
             return _osrm_route(data["coordinates"][0], data["coordinates"][1])
         except Exception:
             pass
+        try:
+            p1 = {"lng": data["coordinates"][0][0], "lat": data["coordinates"][0][1]}
+            p2 = {"lng": data["coordinates"][1][0], "lat": data["coordinates"][1][1]}
+            return _geometric_fallback_route(p1, p2)
+        except Exception:
+            pass
 
     # Fallback for Geocoding / Search
     if "geocode" in path:
         q = (params or {}).get("text", "")
         if q:
+            import re
+            m = re.match(r"^\s*([+-]?\d+(?:\.\d+)?)\s*,\s*([+-]?\d+(?:\.\d+)?)\s*$", q)
+            if m:
+                lat, lng = float(m.group(1)), float(m.group(2))
+                try:
+                    return _nominatim_reverse(lat, lng)
+                except Exception:
+                    pass
             try:
                 return _nominatim_geocode(q)
             except Exception:

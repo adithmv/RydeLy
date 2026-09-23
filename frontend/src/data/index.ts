@@ -124,3 +124,85 @@ export function getTownCoordinates(town: string, district?: string): { lat: numb
   }
   return { lat: 11.8745, lng: 75.3704 }; // Default Kannur
 }
+
+export interface NearestLocationResult {
+  lat: number;
+  lng: number;
+  name: string;
+  town: string;
+  district: string;
+  label: string;
+  distanceKm: number;
+}
+
+function calculateStraightDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+export function findNearestKnownLocation(lat: number, lng: number): NearestLocationResult {
+  let closest: NearestLocationResult | null = null;
+  let minDistance = Infinity;
+
+  // Search all stands
+  for (const stand of ALL_STANDS) {
+    const coords = getTownCoordinates(stand.town, stand.district);
+    const d = calculateStraightDistance(lat, lng, coords.lat, coords.lng);
+    if (d < minDistance) {
+      minDistance = d;
+      closest = {
+        lat: coords.lat,
+        lng: coords.lng,
+        name: stand.name,
+        town: stand.town,
+        district: stand.district,
+        label: `${stand.name}, ${stand.town}`,
+        distanceKm: d,
+      };
+    }
+  }
+
+  // Check towns
+  for (const [townName, coords] of Object.entries(TOWN_COORDINATES)) {
+    const d = calculateStraightDistance(lat, lng, coords.lat, coords.lng);
+    if (d < minDistance) {
+      minDistance = d;
+      closest = {
+        lat: coords.lat,
+        lng: coords.lng,
+        name: townName,
+        town: townName,
+        district:
+          townName.includes("Kasaragod") ||
+          ["Kanhangad", "Nileshwar", "Manjeshwar", "Uppala", "Bekal", "Trikaripur"].includes(townName)
+            ? "Kasaragod"
+            : "Kannur",
+        label: `${townName}, Kerala`,
+        distanceKm: d,
+      };
+    }
+  }
+
+  if (closest) {
+    return closest;
+  }
+
+  return {
+    lat: 11.8745,
+    lng: 75.3704,
+    name: "Kannur Central",
+    town: "Kannur",
+    district: "Kannur",
+    label: "Kannur Central, Kerala",
+    distanceKm: 0,
+  };
+}

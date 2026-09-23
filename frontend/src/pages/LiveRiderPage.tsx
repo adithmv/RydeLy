@@ -35,7 +35,7 @@ import { currentLocation, useLiveLocation } from "@/lib/useLiveLocation";
 import LiveMap from "@/components/LiveMap";
 import PlaceSearch from "@/components/PlaceSearch";
 import StandsList from "@/components/StandsList";
-import { getTownCoordinates } from "@/data/index";
+import { getTownCoordinates, findNearestKnownLocation } from "@/data/index";
 import "./live.css";
 
 export default function LiveRiderPage() {
@@ -196,61 +196,65 @@ export default function LiveRiderPage() {
       setError(e instanceof Error ? e.message : "Location unavailable");
     }
   };
-  const onMap = (lat: number, lng: number) => {
+  const onMap = async (lat: number, lng: number) => {
     if (!mapTarget) return;
-    if (mapTarget === "pickup") {
-      // For pickup, reverse geocode to get a readable address
-      setMapTarget(null);
-      reverseGeocodeAndSetPickup(lat, lng);
-    } else {
-      const place = {
-        lat,
-        lng,
-        label: `Destination at ${lat.toFixed(5)}, ${lng.toFixed(5)}`,
-      };
-      setDestination(place);
-      setMapTarget(null);
-    }
-  };
-
-  // Reverse geocode helper for map selections
-  const reverseGeocodeAndSetPickup = async (lat: number, lng: number) => {
+    const target = mapTarget;
+    setMapTarget(null);
     setError("");
+
+    let label = "";
     try {
       const results = await searchPlaces(`${lat},${lng}`);
-      const label = results[0]?.label || `Pickup at ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+      if (results && results.length > 0 && results[0].label) {
+        label = results[0].label;
+      }
+    } catch {
+      // Ignore
+    }
+
+    if (!label) {
+      const nearest = findNearestKnownLocation(lat, lng);
+      label = `Near ${nearest.label}`;
+    }
+
+    if (target === "pickup") {
       setPickup({ lat, lng, label, source: "map" });
-    } catch (e) {
-      setPickup({ 
-        lat, 
-        lng, 
-        label: `Pickup at ${lat.toFixed(5)}, ${lng.toFixed(5)}`, 
-        source: "map" 
-      });
+      setPickupMethod("map");
+    } else {
+      setDestination({ lat, lng, label, source: "map" });
     }
   };
 
-  // Current location with reverse geocode
+  // Current location with automatic nearest known area resolution
   const handleUseCurrentLocation = async () => {
     setError("");
     setPickupMethod("gps");
     try {
       const p = await currentLocation();
-      if (p.accuracy > 100) {
-        setError("Location accuracy is low. Select your pickup on the map or from the list.");
+      if (p.accuracy > 1500) {
+        setError("Location accuracy is low. Select your pickup on the map or from the stands list.");
         setPickupMethod(null);
         return;
       }
-      // Reverse geocode for better label
+      
+      let label = "";
       try {
         const results = await searchPlaces(`${p.lat},${p.lng}`);
-        const label = results[0]?.label || "Current location";
-        setPickup({ lat: p.lat, lng: p.lng, label, source: "gps" });
+        if (results && results.length > 0 && results[0].label) {
+          label = results[0].label;
+        }
       } catch {
-        setPickup({ lat: p.lat, lng: p.lng, label: "Current location", source: "gps" });
+        // Ignore
       }
+
+      if (!label) {
+        const nearest = findNearestKnownLocation(p.lat, p.lng);
+        label = `Current location (Near ${nearest.label})`;
+      }
+
+      setPickup({ lat: p.lat, lng: p.lng, label, source: "gps" });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Location unavailable");
+      setError(e instanceof Error ? e.message : "Location unavailable. Choose pickup on map or from list.");
       setPickupMethod(null);
     }
   };
@@ -637,8 +641,11 @@ export default function LiveRiderPage() {
                 onChange={setDestination}
               />
               <div className="place-actions">
-                <button onClick={() => setMapTarget("destination")}>
-                  Choose destination on map
+                <button type="button" onClick={() => setMapTarget("destination")}>
+                  <Map size={14} style={{ display: "inline", verticalAlign: "middle", marginRight: "4px" }} /> Choose on map
+                </button>
+                <button type="button" onClick={() => setShowDestinationStands(true)}>
+                  <List size={14} style={{ display: "inline", verticalAlign: "middle", marginRight: "4px" }} /> Stands list
                 </button>
               </div>
               {mapTarget && (
@@ -772,6 +779,7 @@ export default function LiveRiderPage() {
       {/* Stands List Modal - Pickup */}
       {showPickupPicker && pickupMethod === "list" && (
         <StandsList
+          title="Select Pickup Stand"
           onSelect={async (stand) => {
             setShowPickupPicker(false);
             setPickupMethod(null);
@@ -805,6 +813,7 @@ export default function LiveRiderPage() {
       {/* Stands List Modal - Destination */}
       {showDestinationStands && (
         <StandsList
+          title="Select Destination Stand"
           onSelect={async (stand) => {
             setShowDestinationStands(false);
             const label = `${stand.name}, ${stand.town}`;
