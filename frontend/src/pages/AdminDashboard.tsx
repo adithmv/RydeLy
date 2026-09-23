@@ -168,7 +168,8 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     fetchAll();
-  }, [fetchAll]);
+    fetchDriverEarnings("allTime");
+  }, [fetchAll, fetchDriverEarnings]);
 
   // ── Actions ─────────────────────────────────────────────
   const approveDriver = async (id: string) => {
