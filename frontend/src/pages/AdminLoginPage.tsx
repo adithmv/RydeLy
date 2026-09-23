@@ -26,11 +26,6 @@ export default function AdminLoginPage() {
     try {
       const auth = getFirebaseAuth();
       const result = await import("firebase/auth").then(m => m.signInWithEmailAndPassword(auth, email.trim(), password));
-      if (!result.user.emailVerified) {
-        setError("Please verify your email before signing in.");
-        await import("firebase/auth").then(m => m.signOut(auth));
-        return;
-      }
       await loginToken(await result.user.getIdToken());
       await import("firebase/auth").then(m => m.signOut(auth));
       const loggedInUser = await refreshSession();
@@ -102,7 +97,7 @@ export default function AdminLoginPage() {
           <p className="live-muted">
             {forgot
               ? "Enter your admin email to receive a password reset link."
-              : "Use your verified admin email and password."}
+              : "Use your admin email and password."}
           </p>
 
           {!forgot && (

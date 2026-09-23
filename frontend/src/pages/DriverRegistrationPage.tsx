@@ -85,8 +85,21 @@ export default function DriverRegistrationPage() {
     try {
       // Create Firebase user with email/password
       const user = await signUpDriverWithEmail(email.trim().toLowerCase(), password);
-      setFirebaseUser(user);
-      setStep("verify-email");
+      const idToken = await user.getIdToken();
+      await loginToken(idToken);
+      await signOutDriver();
+      
+      // Register driver with backend
+      await registerDriver({ 
+        name: name.trim(), 
+        phone, 
+        town,
+        standId,
+        autoNumber: autoNumber.trim(),
+        email: email.trim().toLowerCase(),
+        emailVerified: true
+      });
+      setStep("success");
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Registration failed. Please try again.";
       if (message.includes("auth/email-already-in-use")) {
@@ -207,7 +220,7 @@ export default function DriverRegistrationPage() {
                   </p>
                 </div>
                 <p className="font-body text-sm text-muted-foreground leading-relaxed">
-                  Your email has been verified. Our team will review your application and verify your details. You'll receive a call once approved — usually within 24 hours.
+                  Your registration has been received. Our team will review your application and verify your details. You'll receive a call once approved — usually within 24 hours.
                 </p>
                 <button
                   onClick={() => navigate("/")}
@@ -329,7 +342,7 @@ export default function DriverRegistrationPage() {
                         required
                       />
                     </div>
-                    <p className="font-body text-xs text-muted-foreground mt-1">Primary login identifier. A verification link will be sent to this email.</p>
+                    <p className="font-body text-xs text-muted-foreground mt-1">Primary login identifier.</p>
                   </div>
 
                   {/* Password - Primary Credential */}
@@ -482,7 +495,7 @@ export default function DriverRegistrationPage() {
                       </React.Fragment>
                     ) : (
                       <React.Fragment>
-                        Create Account & Send Verification
+                        Create Driver Account
                         <ArrowRight size={16} />
                       </React.Fragment>
                     )}

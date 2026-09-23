@@ -142,11 +142,6 @@ export default function LoginPage() {
     setError("");
     try {
       const user = await signInRiderWithEmail(riderEmail.trim(), riderPassword);
-      if (!user.emailVerified) {
-        setError("Please verify your email before signing in. Check your inbox for the verification link.");
-        await signOutRider();
-        return;
-      }
       await loginToken(await user.getIdToken());
       await signOutRider();
       const loggedInUser = await refreshSession();
@@ -177,9 +172,23 @@ export default function LoginPage() {
     setBusy(true);
     setError("");
     try {
-      await signUpRiderWithEmail(riderEmail.trim(), riderPassword);
-      setError("Verification email sent. Please check your inbox and verify your email before signing in.");
-      setRiderStep("email_login");
+      const user = await signUpRiderWithEmail(riderEmail.trim(), riderPassword);
+      await loginToken(await user.getIdToken());
+      if (name.trim())
+        await request("/auth/set-name", {
+          method: "POST",
+          body: JSON.stringify({ name: name.trim() }),
+        });
+      await signOutRider();
+      const loggedInUser = await refreshSession();
+      if (!loggedInUser)
+        throw new Error("Your session could not be established. Please retry.");
+      const targetRoute = loggedInUser.role === "admin"
+        ? "/admin/dashboard"
+        : loggedInUser.role === "driver"
+          ? "/driver/portal"
+          : "/home";
+      navigate(targetRoute, { replace: true });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Sign up failed";
       if (message.includes("auth/email-already-in-use")) {
@@ -218,11 +227,6 @@ export default function LoginPage() {
     setError("");
     try {
       const user = await signInDriverWithEmail(driverEmail.trim(), driverPassword);
-      if (!user.emailVerified) {
-        setError("Please verify your email before signing in. Check your inbox for the verification link.");
-        await signOutDriver();
-        return;
-      }
       await loginToken(await user.getIdToken());
       await signOutDriver();
       const loggedInUser = await refreshSession();
@@ -733,11 +737,10 @@ export default function LoginPage() {
             </p>
           )}
           <p className="login-footnote">
-            <Phone size={15} /> Riders: We send a verification SMS to confirm it's you.
+            <Phone size={15} /> Riders: Sign in via Phone OTP or Email & Password.
             <br />
-            <Mail size={15} style={{ marginLeft: "24px", verticalAlign: "middle" }} /> Drivers: Sign in with your verified email and password.
+            <Mail size={15} style={{ marginLeft: "24px", verticalAlign: "middle" }} /> Drivers: Sign in with your registered email and password.
             <br />
-            <Mail size={15} style={{ marginLeft: "24px", verticalAlign: "middle" }} /> Riders (Email): Sign in with your verified email and password.
             Your account access is managed securely by the server.
           </p>
         </div>
