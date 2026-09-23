@@ -85,9 +85,12 @@ def _nominatim_reverse(lat, lng):
 
 
 def _nominatim_geocode(query):
-    """Fetch geocoding search results from OpenStreetMap Nominatim."""
-    encoded = quote(query)
-    url = f"https://nominatim.openstreetmap.org/search?q={encoded}&format=json&countrycodes=in&limit=5"
+    """Fetch geocoding search results from OpenStreetMap Nominatim scoped to Kerala."""
+    search_q = query
+    if "kerala" not in query.lower() and "india" not in query.lower():
+        search_q = f"{query}, Kerala, India"
+    encoded = quote(search_q)
+    url = f"https://nominatim.openstreetmap.org/search?q={encoded}&format=json&countrycodes=in&viewbox=74.5,13.0,77.8,8.0&bounded=0&limit=5"
     req = Request(url, headers={"User-Agent": "RydeLy/1.0 (Kerala Auto Mobility; contact@rydely.in)", "Accept": "application/json"})
     with urlopen(req, timeout=8) as response:
         data = json.load(response)
@@ -96,6 +99,8 @@ def _nominatim_geocode(query):
         try:
             lat = float(item["lat"])
             lng = float(item["lon"])
+            if not (7.5 <= lat <= 13.5 and 74.0 <= lng <= 78.5):
+                continue
             label = item.get("display_name") or query
             features.append({
                 "geometry": {"coordinates": [lng, lat]},

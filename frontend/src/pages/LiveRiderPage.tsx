@@ -784,24 +784,27 @@ export default function LiveRiderPage() {
             setShowPickupPicker(false);
             setPickupMethod(null);
             const label = `${stand.name}, ${stand.town}`;
+            const defaultCoords = getTownCoordinates(stand.town, stand.district);
             try {
-              const places = await searchPlaces(`${stand.name}, ${stand.town}`);
-              if (places && places.length > 0 && places[0].lat && places[0].lng) {
-                setPickup({
-                  lat: places[0].lat,
-                  lng: places[0].lng,
-                  label,
-                  source: "list",
-                });
-                return;
+              const places = await searchPlaces(`${stand.name}, ${stand.town}, ${stand.district}, Kerala`);
+              if (places && places.length > 0) {
+                const keralaPlace = places.find(p => p.lat >= 8.0 && p.lat <= 13.0 && p.lng >= 74.5 && p.lng <= 77.8);
+                if (keralaPlace && keralaPlace.lat && keralaPlace.lng) {
+                  setPickup({
+                    lat: keralaPlace.lat,
+                    lng: keralaPlace.lng,
+                    label,
+                    source: "list",
+                  });
+                  return;
+                }
               }
             } catch {
               // fallback
             }
-            const coords = getTownCoordinates(stand.town, stand.district);
             setPickup({
-              lat: coords.lat,
-              lng: coords.lng,
+              lat: defaultCoords.lat,
+              lng: defaultCoords.lng,
               label,
               source: "list",
             });
@@ -817,24 +820,27 @@ export default function LiveRiderPage() {
           onSelect={async (stand) => {
             setShowDestinationStands(false);
             const label = `${stand.name}, ${stand.town}`;
+            const defaultCoords = getTownCoordinates(stand.town, stand.district);
             try {
-              const places = await searchPlaces(`${stand.name}, ${stand.town}`);
-              if (places && places.length > 0 && places[0].lat && places[0].lng) {
-                setDestination({
-                  lat: places[0].lat,
-                  lng: places[0].lng,
-                  label,
-                  source: "list",
-                });
-                return;
+              const places = await searchPlaces(`${stand.name}, ${stand.town}, ${stand.district}, Kerala`);
+              if (places && places.length > 0) {
+                const keralaPlace = places.find(p => p.lat >= 8.0 && p.lat <= 13.0 && p.lng >= 74.5 && p.lng <= 77.8);
+                if (keralaPlace && keralaPlace.lat && keralaPlace.lng) {
+                  setDestination({
+                    lat: keralaPlace.lat,
+                    lng: keralaPlace.lng,
+                    label,
+                    source: "list",
+                  });
+                  return;
+                }
               }
             } catch {
               // fallback
             }
-            const coords = getTownCoordinates(stand.town, stand.district);
             setDestination({
-              lat: coords.lat,
-              lng: coords.lng,
+              lat: defaultCoords.lat,
+              lng: defaultCoords.lng,
               label,
               source: "list",
             });
