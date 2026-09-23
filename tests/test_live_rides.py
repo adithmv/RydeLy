@@ -253,3 +253,15 @@ def test_non_finite_gps_timestamp_is_rejected(system):
     _, _, create = system
     driver = create("driver", "driver")
     assert post(driver, "/rides/presence", {"online":True, **position(), "capturedAt":float("nan")}).status_code == 400
+
+
+def test_osrm_fallback_structure():
+    from app.services.routing import _osrm_route
+    # Test that OSRM route output matches GeoJSON expected format
+    res = _osrm_route([75.3704, 11.8745], [75.3970, 11.8900])
+    assert "features" in res
+    assert len(res["features"]) > 0
+    assert "geometry" in res["features"][0]
+    assert "summary" in res["features"][0]["properties"]
+    assert res["features"][0]["properties"]["summary"]["distance"] > 0
+
