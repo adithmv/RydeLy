@@ -547,9 +547,16 @@ export default function LiveDriverPage() {
 
   return (
     <main className="live-app">
-      <header className="live-subnav">
+      <header className="live-subnav flex items-center justify-between">
         <strong>Driver workspace</strong>
-        <Link to="/driver/complaint">Report an issue</Link>
+        <div className="flex items-center gap-4">
+          <Link to="/driver/earnings" className="live-link flex items-center gap-1.5">
+            <Wallet size={16} /> Earnings
+          </Link>
+          <Link to="/driver/complaint" className="live-link flex items-center gap-1.5">
+            <AlertTriangle size={16} /> Report an issue
+          </Link>
+        </div>
       </header>
       <div className="live-layout">
         <aside className="live-booking">

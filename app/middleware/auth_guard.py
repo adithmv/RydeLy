@@ -15,7 +15,9 @@ def identity():
         return None
     try:
         firebase_user = auth.get_user(uid)
-        if firebase_user.disabled or record["authTime"] * 1000 < firebase_user.tokens_valid_after_timestamp:
+        if firebase_user.disabled:
+            return None
+        if firebase_user.tokens_valid_after_timestamp and (record["authTime"] * 1000 < (firebase_user.tokens_valid_after_timestamp - 5000)):
             return None
     except Exception:
         return None
@@ -52,7 +54,7 @@ def identity():
         "email": user.get("email", ""),
         "role": role,
         "driverId": driver_id if role == "driver" else None,
-        "authProvider": user.get("authProvider", "phone")
+        "authProvider": user.get("authProvider", record.get("authProvider", "phone"))
     }
 
 
@@ -68,7 +70,7 @@ def require_role(role=None):
                 return jsonify(error="Access denied"), 403
             g.user = user
             # Preserve legacy endpoint compatibility, always from freshly checked DB identity.
-            session.update({k: user[k] for k in ("uid", "phone", "role", "driverId")})
+            session.update({k: user[k] for k in ("uid", "phone", "email", "role", "driverId", "authProvider") if k in user})
             return f(*args, **kwargs)
         return guarded
     return decorate

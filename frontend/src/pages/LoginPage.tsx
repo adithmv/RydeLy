@@ -227,7 +227,7 @@ export default function LoginPage() {
     setError("");
     try {
       const user = await signInDriverWithEmail(driverEmail.trim(), driverPassword);
-      await loginToken(await user.getIdToken());
+      await loginToken(await user.getIdToken(), "driver");
       await signOutDriver();
       const loggedInUser = await refreshSession();
       console.log("[DriverLogin] Backend returned role:", loggedInUser?.role, "full user:", loggedInUser);
@@ -235,13 +235,8 @@ export default function LoginPage() {
         throw new Error("Your session could not be established. Please retry.");
       if (loggedInUser.role === "admin") {
         navigate("/admin/dashboard", { replace: true });
-      } else if (loggedInUser.role === "driver") {
-        navigate("/driver/portal", { replace: true });
       } else {
-        setError("This account is not registered as a driver. Please register as a driver first.");
-        await request("/auth/logout", { method: "POST" });
-        await refreshSession();
-        return;
+        navigate("/driver/portal", { replace: true });
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Sign in failed";

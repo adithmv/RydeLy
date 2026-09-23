@@ -58,7 +58,11 @@ export default function Navbar() {
               </>
             )}
             {isDriver && (
-              <Link to="/driver/portal" className="font-body text-sm font-medium text-black/70 hover:text-orange transition-colors">My Portal</Link>
+              <>
+                <Link to="/driver/portal" className="font-body text-sm font-medium text-black/70 hover:text-orange transition-colors">My Portal</Link>
+                <Link to="/driver/earnings" className="font-body text-sm font-medium text-black/70 hover:text-orange transition-colors">Earnings</Link>
+                <Link to="/driver/complaint" className="font-body text-sm font-medium text-black/70 hover:text-orange transition-colors">File Complaint</Link>
+              </>
             )}
             
             {isLoggedIn ? (
@@ -92,11 +96,17 @@ export default function Navbar() {
           )}
           {isLoggedIn && !isDriver && !isAdmin && (
             <>
-              <Link to="/home"    className="font-heading text-3xl font-bold hover:text-orange transition-colors">Find Auto</Link>
-              <Link to="/history" className="font-heading text-3xl font-bold hover:text-orange transition-colors">Ride & Call History</Link>
+              <Link to="/home"    onClick={() => setMenuOpen(false)} className="font-heading text-3xl font-bold hover:text-orange transition-colors">Find Auto</Link>
+              <Link to="/history" onClick={() => setMenuOpen(false)} className="font-heading text-3xl font-bold hover:text-orange transition-colors">Ride & Call History</Link>
             </>
           )}
-          {isDriver && <Link to="/driver/portal" className="font-heading text-3xl font-bold hover:text-orange transition-colors">My Portal</Link>}
+          {isDriver && (
+            <>
+              <Link to="/driver/portal" onClick={() => setMenuOpen(false)} className="font-heading text-3xl font-bold hover:text-orange transition-colors">My Portal</Link>
+              <Link to="/driver/earnings" onClick={() => setMenuOpen(false)} className="font-heading text-3xl font-bold hover:text-orange transition-colors">Earnings</Link>
+              <Link to="/driver/complaint" onClick={() => setMenuOpen(false)} className="font-heading text-3xl font-bold hover:text-orange transition-colors">File Complaint</Link>
+            </>
+          )}
           
           {isLoggedIn ? (
             <button onClick={() => { handleLogout(); setMenuOpen(false); }} className="btn-pill bg-[#0F0E0C] text-[#FDFAF4] text-lg mt-4">Logout</button>

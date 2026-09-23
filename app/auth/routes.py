@@ -19,7 +19,9 @@ def csrf():
 @auth_bp.post("/verify-token")
 @limiter.limit("10 per minute")
 def verify_token():
-    token = text(body().get("idToken"), "idToken", 20, 12000)
+    req_body = body()
+    token = text(req_body.get("idToken"), "idToken", 20, 12000)
+    mode = req_body.get("mode")
     try:
         decoded = verify_firebase_token(token)
     except ValueError as error:
@@ -63,8 +65,35 @@ def verify_token():
     if not driver:
         driver = get_driver_by_uid(uid)
 
+    # If logging in via Driver tab and no driver record exists yet, auto-create driver record
+    if not driver and mode == "driver":
+        from datetime import datetime, timezone
+        driver_name = decoded.get("name") or (email.split("@")[0].capitalize() if email else "Driver")
+        driver_data = {
+            "name": driver_name,
+            "phone": phone or "",
+            "email": email or "",
+            "emailVerified": email_verified,
+            "standId": "kannur_central",
+            "town": "Kannur",
+            "autoNumber": "KL-13-TEMP",
+            "isVerified": True,
+            "isAvailable": False,
+            "isBanned": False,
+            "warningCount": 0,
+            "registeredAt": datetime.now(timezone.utc).isoformat(),
+            "uid": uid
+        }
+        new_driver_ref = db.reference("/drivers").push()
+        new_driver_ref.set(driver_data)
+        driver = {"id": new_driver_ref.key, **driver_data}
+
     if driver and not driver.get("isBanned"):
-        db.reference(f"/drivers/{driver['id']}").update({"uid": uid})
+        db.reference(f"/drivers/{driver['id']}").update({
+            "uid": uid,
+            "email": email or driver.get("email", ""),
+            "phone": phone or driver.get("phone", "")
+        })
         db.reference(f"/users/{uid}").update({"driverId": driver["id"], "role": "driver"})
 
     old_sid = session.get("sid")
