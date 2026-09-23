@@ -32,6 +32,7 @@ export default function ProtectedRoute({
 
   // Not logged in trying to visit protected page
   if (requireAuth && !isLoggedIn) {
+    if (requireAdmin) return <Navigate to="/admin" replace />;
     return <Navigate to="/login" replace />;
   }
 

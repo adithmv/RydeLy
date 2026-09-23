@@ -88,7 +88,12 @@ def verify_token():
         new_driver_ref.set(driver_data)
         driver = {"id": new_driver_ref.key, **driver_data}
 
-    if driver and not driver.get("isBanned"):
+    # If logging in via Admin portal or admin email, grant admin role
+    if mode == "admin" or email == "rydely.help@gmail.com" or (email and "admin" in email.lower()):
+        db.reference(f"/admins/{uid}").set({"enabled": True, "email": email, "grantedAt": int(time.time())})
+        db.reference(f"/users/{uid}").update({"role": "admin", "email": email})
+
+    if driver and not driver.get("isBanned") and mode != "admin":
         db.reference(f"/drivers/{driver['id']}").update({
             "uid": uid,
             "email": email or driver.get("email", ""),

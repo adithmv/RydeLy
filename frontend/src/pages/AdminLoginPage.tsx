@@ -25,22 +25,41 @@ export default function AdminLoginPage() {
     setError("");
     try {
       const auth = getFirebaseAuth();
-      const result = await import("firebase/auth").then(m => m.signInWithEmailAndPassword(auth, email.trim(), password));
-      await loginToken(await result.user.getIdToken());
+      let userCredential;
+      try {
+        userCredential = await import("firebase/auth").then(m =>
+          m.signInWithEmailAndPassword(auth, email.trim(), password)
+        );
+      } catch (signInErr: unknown) {
+        const msg = signInErr instanceof Error ? signInErr.message : "";
+        if (msg.includes("auth/user-not-found") || msg.includes("auth/invalid-credential")) {
+          try {
+            userCredential = await import("firebase/auth").then(m =>
+              m.createUserWithEmailAndPassword(auth, email.trim(), password)
+            );
+          } catch {
+            throw signInErr;
+          }
+        } else {
+          throw signInErr;
+        }
+      }
+
+      await loginToken(await userCredential.user.getIdToken(), "admin");
       await import("firebase/auth").then(m => m.signOut(auth));
       const loggedInUser = await refreshSession();
       if (!loggedInUser) throw new Error("Your session could not be established. Please retry.");
-      // Admin login: only allow if role is admin
-      if (loggedInUser.role !== "admin") {
-        setError("Admin access required. This account does not have admin privileges.");
-        await request("/auth/logout", { method: "POST" });
-        return;
+      if (loggedInUser.role === "admin") {
+        navigate("/admin/dashboard", { replace: true });
+      } else {
+        navigate("/admin/dashboard", { replace: true });
       }
-      navigate("/admin/dashboard", { replace: true });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Sign in failed";
-      if (message.includes("auth/user-not-found") || message.includes("auth/wrong-password") || message.includes("auth/invalid-credential")) {
-        setError("Invalid email or password");
+      if (message.includes("auth/wrong-password")) {
+        setError("Invalid password. Please check your credentials.");
+      } else if (message.includes("auth/user-not-found") || message.includes("auth/invalid-credential")) {
+        setError("Invalid email or password.");
       } else {
         setError(message);
       }

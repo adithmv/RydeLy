@@ -69,7 +69,7 @@ export interface Identity {
 const post = <T>(path: string, body: unknown = {}) =>
   request<T>(path, { method: "POST", body: JSON.stringify(body) });
 export const getIdentity = () => request<Identity>("/auth/me");
-export const loginToken = (idToken: string, mode?: "rider" | "driver") =>
+export const loginToken = (idToken: string, mode?: "rider" | "driver" | "admin") =>
   post<{ success: boolean }>("/auth/verify-token", { idToken, mode });
 export const searchPlaces = (q: string) =>
   request<Place[]>(`/rides/places?q=${encodeURIComponent(q)}`);
