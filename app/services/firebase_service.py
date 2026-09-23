@@ -176,6 +176,17 @@ def get_driver_by_email(email):
             return {"id": k, **v}
     return None
 
+def get_driver_by_uid(uid):
+    """Find a driver record by Firebase UID."""
+    ref = db.reference("/drivers")
+    all_drivers = ref.get()
+    if not all_drivers:
+        return None
+    for k, v in all_drivers.items():
+        if v.get("uid") == uid:
+            return {"id": k, **v}
+    return None
+
 def get_announcements():
     """Get the current active announcement."""
     data = db.reference("/announcement").get()

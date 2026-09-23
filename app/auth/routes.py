@@ -6,7 +6,7 @@ from app.auth import auth_bp
 from app.extensions import limiter
 from app.security import body, text
 from app.services.otp_service import verify_firebase_token
-from app.services.firebase_service import get_or_create_user, get_driver_by_phone, get_driver_by_email
+from app.services.firebase_service import get_or_create_user, get_driver_by_phone, get_driver_by_email, get_driver_by_uid
 from app.middleware.auth_guard import commuter_required
 
 
@@ -50,18 +50,22 @@ def verify_token():
     if user.get("isBanned"):
         return jsonify(error="Account is unavailable"), 403
 
-    # Link existing driver registration by phone if this is a phone auth user
-    if auth_provider == "phone" and phone:
-        driver = get_driver_by_phone(phone)
-        if driver and not driver.get("uid"):
-            db.reference(f"/drivers/{driver['id']}").update({"uid": uid})
-            db.reference(f"/users/{uid}").update({"driverId": driver["id"]})
-    # Link existing driver registration by email if this is an email auth user
-    elif auth_provider == "email" and email:
+    # Link existing driver registration by driverId, email, phone, or UID
+    driver = None
+    if user.get("driverId"):
+        driver_data = db.reference(f"/drivers/{user['driverId']}").get()
+        if driver_data:
+            driver = {"id": user["driverId"], **driver_data}
+    if not driver and email:
         driver = get_driver_by_email(email)
-        if driver and not driver.get("uid"):
-            db.reference(f"/drivers/{driver['id']}").update({"uid": uid})
-            db.reference(f"/users/{uid}").update({"driverId": driver["id"]})
+    if not driver and phone:
+        driver = get_driver_by_phone(phone)
+    if not driver:
+        driver = get_driver_by_uid(uid)
+
+    if driver and not driver.get("isBanned"):
+        db.reference(f"/drivers/{driver['id']}").update({"uid": uid})
+        db.reference(f"/users/{uid}").update({"driverId": driver["id"], "role": "driver"})
 
     old_sid = session.get("sid")
     if old_sid:

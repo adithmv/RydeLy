@@ -54,7 +54,8 @@ def register():
         cleaned["emailVerified"] = data.get("emailVerified", False)
     driver = register_driver(cleaned)
     db.reference(f"/drivers/{driver['id']}").update({"uid": uid})
-    db.reference(f"/users/{uid}").update({"driverId": driver["id"]})
+    db.reference(f"/users/{uid}").update({"driverId": driver["id"], "role": "driver"})
+    session.update(driverId=driver["id"], role="driver")
     return jsonify(success=True, driverId=driver["id"]), 201
 
 

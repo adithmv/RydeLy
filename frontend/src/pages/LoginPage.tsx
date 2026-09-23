@@ -230,17 +230,19 @@ export default function LoginPage() {
       await loginToken(await user.getIdToken());
       await signOutDriver();
       const loggedInUser = await refreshSession();
-      // Debug: log the role returned from backend
       console.log("[DriverLogin] Backend returned role:", loggedInUser?.role, "full user:", loggedInUser);
       if (!loggedInUser)
         throw new Error("Your session could not be established. Please retry.");
-      const targetRoute = loggedInUser.role === "admin"
-        ? "/admin/dashboard"
-        : loggedInUser.role === "driver"
-          ? "/driver/portal"
-          : "/home";
-      console.log("[DriverLogin] Navigating to:", targetRoute);
-      navigate(targetRoute, { replace: true });
+      if (loggedInUser.role === "admin") {
+        navigate("/admin/dashboard", { replace: true });
+      } else if (loggedInUser.role === "driver") {
+        navigate("/driver/portal", { replace: true });
+      } else {
+        setError("This account is not registered as a driver. Please register as a driver first.");
+        await request("/auth/logout", { method: "POST" });
+        await refreshSession();
+        return;
+      }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Sign in failed";
       if (message.includes("auth/user-not-found") || message.includes("auth/wrong-password") || message.includes("auth/invalid-credential")) {

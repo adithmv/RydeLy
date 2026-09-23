@@ -25,8 +25,26 @@ def identity():
         role = "admin"
     elif driver_id:
         driver = db.reference(f"/drivers/{driver_id}").get()
-        if driver and driver.get("uid") == uid and driver.get("isVerified") and not driver.get("isBanned"):
+        if driver and not driver.get("isBanned"):
             role = "driver"
+            if driver.get("uid") != uid:
+                db.reference(f"/drivers/{driver_id}").update({"uid": uid})
+    else:
+        # Fallback: check if driver exists by UID, email, or phone
+        from app.services.firebase_service import get_driver_by_email, get_driver_by_phone, get_driver_by_uid
+        email = user.get("email")
+        phone = user.get("phone")
+        driver = get_driver_by_uid(uid)
+        if not driver and email:
+            driver = get_driver_by_email(email)
+        if not driver and phone:
+            driver = get_driver_by_phone(phone)
+        if driver and not driver.get("isBanned"):
+            role = "driver"
+            driver_id = driver["id"]
+            db.reference(f"/users/{uid}").update({"driverId": driver_id, "role": "driver"})
+            db.reference(f"/drivers/{driver_id}").update({"uid": uid})
+
     return {
         "uid": uid,
         "name": user.get("name", ""),

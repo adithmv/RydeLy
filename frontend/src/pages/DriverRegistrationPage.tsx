@@ -222,12 +222,20 @@ export default function DriverRegistrationPage() {
                 <p className="font-body text-sm text-muted-foreground leading-relaxed">
                   Your registration has been received. Our team will review your application and verify your details. You'll receive a call once approved — usually within 24 hours.
                 </p>
-                <button
-                  onClick={() => navigate("/")}
-                  className="btn-pill bg-primary text-primary-foreground font-medium shadow-orange-glow hover:bg-[hsl(var(--yellow))] hover:text-foreground transition-all"
-                >
-                  Back to Home
-                </button>
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                  <button
+                    onClick={() => navigate("/login")}
+                    className="w-full sm:w-auto btn-pill bg-primary text-primary-foreground font-medium shadow-orange-glow hover:bg-[hsl(var(--yellow))] hover:text-foreground transition-all"
+                  >
+                    Go to Driver Sign In →
+                  </button>
+                  <button
+                    onClick={() => navigate("/")}
+                    className="w-full sm:w-auto btn-pill bg-transparent text-muted-foreground border-2 border-border-warm hover:bg-foreground/5 font-medium transition-all"
+                  >
+                    Back to Home
+                  </button>
+                </div>
               </motion.div>
             ) : step === "verify-email" ? (
               <motion.div
