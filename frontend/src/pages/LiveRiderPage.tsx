@@ -35,7 +35,7 @@ import { currentLocation, useLiveLocation } from "@/lib/useLiveLocation";
 import LiveMap from "@/components/LiveMap";
 import PlaceSearch from "@/components/PlaceSearch";
 import StandsList from "@/components/StandsList";
-import { searchPlaces as searchPlacesApi } from "@/lib/live";
+import { getTownCoordinates } from "@/data/index";
 import "./live.css";
 
 export default function LiveRiderPage() {
@@ -89,11 +89,13 @@ export default function LiveRiderPage() {
     },
   });
   const candidate = quoteMutation.data;
+  const isMatchingPlace = (a?: Place, b?: Place) =>
+    Boolean(a && b && Math.abs(a.lat - b.lat) < 1e-4 && Math.abs(a.lng - b.lng) < 1e-4);
   const quote =
     candidate &&
     candidate.service === service &&
-    JSON.stringify(candidate.pickup) === JSON.stringify(pickup) &&
-    JSON.stringify(candidate.destination) === JSON.stringify(destination)
+    isMatchingPlace(candidate.pickup, pickup) &&
+    isMatchingPlace(candidate.destination, destination)
       ? candidate
       : undefined;
   const book = useMutation({
@@ -770,15 +772,31 @@ export default function LiveRiderPage() {
       {/* Stands List Modal - Pickup */}
       {showPickupPicker && pickupMethod === "list" && (
         <StandsList
-          onSelect={(stand) => {
-            setPickup({ 
-              lat: 0,
-              lng: 0,
-              label: `${stand.name}, ${stand.town}`,
-              source: "list"
-            });
+          onSelect={async (stand) => {
             setShowPickupPicker(false);
             setPickupMethod(null);
+            const label = `${stand.name}, ${stand.town}`;
+            try {
+              const places = await searchPlaces(`${stand.name}, ${stand.town}`);
+              if (places && places.length > 0 && places[0].lat && places[0].lng) {
+                setPickup({
+                  lat: places[0].lat,
+                  lng: places[0].lng,
+                  label,
+                  source: "list",
+                });
+                return;
+              }
+            } catch {
+              // fallback
+            }
+            const coords = getTownCoordinates(stand.town, stand.district);
+            setPickup({
+              lat: coords.lat,
+              lng: coords.lng,
+              label,
+              source: "list",
+            });
           }}
           onClose={() => { setShowPickupPicker(false); setPickupMethod(null); }}
         />
@@ -787,14 +805,30 @@ export default function LiveRiderPage() {
       {/* Stands List Modal - Destination */}
       {showDestinationStands && (
         <StandsList
-          onSelect={(stand) => {
-            setDestination({ 
-              lat: 0,
-              lng: 0,
-              label: `${stand.name}, ${stand.town}`,
-              source: "list"
-            });
+          onSelect={async (stand) => {
             setShowDestinationStands(false);
+            const label = `${stand.name}, ${stand.town}`;
+            try {
+              const places = await searchPlaces(`${stand.name}, ${stand.town}`);
+              if (places && places.length > 0 && places[0].lat && places[0].lng) {
+                setDestination({
+                  lat: places[0].lat,
+                  lng: places[0].lng,
+                  label,
+                  source: "list",
+                });
+                return;
+              }
+            } catch {
+              // fallback
+            }
+            const coords = getTownCoordinates(stand.town, stand.district);
+            setDestination({
+              lat: coords.lat,
+              lng: coords.lng,
+              label,
+              source: "list",
+            });
           }}
           onClose={() => { setShowDestinationStands(false); }}
         />
