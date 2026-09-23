@@ -7,6 +7,7 @@ interface ProtectedRouteProps {
   requireAdmin?: boolean;    // must be admin
   requireDriver?: boolean;   // must be driver
   redirectIfAuth?: boolean;  // kick out if already logged in (login/register pages)
+  allowCommuter?: boolean;   // allow commuters (riders) through when redirectIfAuth
 }
 
 export default function ProtectedRoute({
@@ -15,6 +16,7 @@ export default function ProtectedRoute({
   requireAdmin = false,
   requireDriver = false,
   redirectIfAuth = false,
+  allowCommuter = false,
 }: ProtectedRouteProps) {
   const { isLoggedIn, isAdmin, isDriver, authLoading } = useApp();
 
@@ -24,6 +26,7 @@ export default function ProtectedRoute({
   if (redirectIfAuth && isLoggedIn) {
     if (isAdmin) return <Navigate to="/admin/dashboard" replace />;
     if (isDriver) return <Navigate to="/driver/portal" replace />;
+    if (allowCommuter) return <>{children}</>; // Allow commuters to register as driver
     return <Navigate to="/home" replace />;
   }
 

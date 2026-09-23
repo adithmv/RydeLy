@@ -51,13 +51,21 @@ function AppLayout() {
         />
         <Route
           path="/register"
-          element={<DriverRegistrationPage />}
+          element={
+            <ProtectedRoute redirectIfAuth allowCommuter>
+              <DriverRegistrationPage />
+            </ProtectedRoute>
+          }
         />
 
-        {/* Admin login — auto-redirects to dashboard */}
+        {/* Admin login — hidden route, no nav links */}
         <Route
           path="/admin"
-          element={<AdminLoginPage />}
+          element={
+            <ProtectedRoute redirectIfAuth>
+              <AdminLoginPage />
+            </ProtectedRoute>
+          }
         />
 
         {/* Commuter routes — must be logged in */}
@@ -94,15 +102,17 @@ function AppLayout() {
             </ProtectedRoute>
           }
         />
-        {/* Admin dashboard — direct access without authentication */}
+        {/* Admin dashboard — must be logged in AND admin */}
         <Route
           path="/admin/dashboard"
           element={
-            <Suspense
-              fallback={<p className="demo-page">Loading management…</p>}
-            >
-              <AdminDashboard />
-            </Suspense>
+            <ProtectedRoute requireAuth requireAdmin>
+              <Suspense
+                fallback={<p className="demo-page">Loading management…</p>}
+              >
+                <AdminDashboard />
+              </Suspense>
+            </ProtectedRoute>
           }
         />
 
