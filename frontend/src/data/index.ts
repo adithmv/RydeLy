@@ -106,6 +106,15 @@ const TOWN_COORDINATES: Record<string, { lat: number; lng: number }> = {
   "Mele Chovva": { lat: 11.8620, lng: 75.3900 },
   "Thazhe Chovva": { lat: 11.8550, lng: 75.3980 },
   "Puthiyatheru": { lat: 11.8950, lng: 75.3620 },
+  "Chemperi": { lat: 12.0867, lng: 75.5562 },
+  "Vimal Jyothi Engineering College": { lat: 12.0955, lng: 75.5615 },
+  "VJEC": { lat: 12.0955, lng: 75.5615 },
+  "Jyothi Nagar": { lat: 12.0948, lng: 75.5610 },
+  "Pooparamba": { lat: 12.0970, lng: 75.5630 },
+  "Manippara": { lat: 12.1050, lng: 75.5720 },
+  "Eruvessi": { lat: 12.0735, lng: 75.5650 },
+  "Payyavoor": { lat: 12.0084, lng: 75.5835 },
+  "Kudiyanmala": { lat: 12.1417, lng: 75.5250 },
 };
 
 export function getTownCoordinates(town: string, district?: string): { lat: number; lng: number } {
