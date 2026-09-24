@@ -86,24 +86,26 @@ def present(ride):
 
 
 def fresh(location):
-    return bool(location and now()-location.get("updatedAt",0) <= FRESH_SECONDS and location.get("accuracy",9999) <= 100)
+    return bool(location and now() - location.get("updatedAt", 0) <= FRESH_SECONDS and location.get("accuracy", 9999) <= 100)
 
 
 def driver_eligible(state, ride):
     driver_id = g.user["driverId"]
-    presence = state.get("presence",{}).get(driver_id, {})
+    presence = state.get("presence", {}).get(driver_id, {})
     
     # Check shift expiry from driver record (denormalized for quick lookup)
     driver_ref = db.reference(f"/drivers/{driver_id}")
     driver = driver_ref.get()
     if driver:
+        if driver.get("isBanned"):
+            return False
         shift_ends_at = driver.get("shiftEndsAt")
         if shift_ends_at and time.time() >= shift_ends_at:
             # Shift expired - driver not eligible
             return False
     
-    return (presence.get("online") and fresh(presence) and
-            distance_km(presence, ride["pickup"]) <= current_app.config["DRIVER_RADIUS_KM"])
+    return bool(presence.get("online") and fresh(presence) and
+                distance_km(presence, ride["pickup"]) <= current_app.config.get("DRIVER_RADIUS_KM", 30.0))
 
 
 @rides_bp.get("/places")
@@ -337,12 +339,12 @@ def presence():
 def validate_location(data):
     location = point(data)
     accuracy = data.get("accuracy")
-    if isinstance(accuracy,bool) or not isinstance(accuracy,(int,float)) or not 0 <= accuracy <= 100:
+    if isinstance(accuracy, bool) or not isinstance(accuracy, (int, float)) or not 0 <= accuracy <= 100:
         raise BadRequest("Location accuracy must be within 100 metres. Please retry outdoors.")
     captured = data.get("capturedAt")
-    if isinstance(captured,bool) or not isinstance(captured,(int,float)) or not math.isfinite(captured) or abs(time.time()-captured) > 60:
+    if isinstance(captured, bool) or not isinstance(captured, (int, float)) or not math.isfinite(captured) or abs(time.time() - captured) > 60:
         raise BadRequest("Location is stale. Enable location and retry.")
-    return {**location,"accuracy":accuracy,"capturedAt":captured,"updatedAt":now()}
+    return {**location, "accuracy": accuracy, "capturedAt": captured, "updatedAt": now()}
 
 
 @rides_bp.post("/<ride_id>/location")

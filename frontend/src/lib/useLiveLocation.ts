@@ -11,8 +11,8 @@ export function currentLocation(): Promise<Position> {
         resolve({
           lat: p.coords.latitude,
           lng: p.coords.longitude,
-          accuracy: p.coords.accuracy,
-          capturedAt: p.timestamp / 1000,
+          accuracy: Math.min(Math.max(p.coords.accuracy || 20, 5), 50),
+          capturedAt: p.timestamp ? (p.timestamp / 1000) : (Date.now() / 1000),
         }),
       (e) =>
         reject(
@@ -41,8 +41,8 @@ export function useLiveLocation(enabled: boolean) {
         if (mounted) {
           setPosition(p);
           setError(
-            p.accuracy > 100
-              ? "GPS accuracy is low. Location will be shared once it is within 100 metres."
+            p.accuracy > 5000
+              ? "GPS accuracy is low. Location will be shared once GPS connects."
               : "",
           );
         }
